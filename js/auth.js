@@ -3,9 +3,8 @@
   const SCHOOLS_BY_REGION = {
     '인천': [
       '연수중학교','인천논현중학교','인천동막중학교','인천송도중학교',
-      '인천포스코중학교','청학중학교','함박중학교','해송중학교',
+      '청학중학교','함박중학교','해송중학교',
       '인천논현고등학교','인천송도고등학교','연수고등학교',
-      '인천외국어고등학교','인천과학예술영재학교',
     ],
     '부천': [
       '부곡중학교','부명중학교','부천중학교','상동중학교','송내중학교',
@@ -26,6 +25,30 @@
     ],
   };
 
+  function filterGradesBySchool(schoolName) {
+    const gradeSel = document.getElementById('register-grade');
+    if (!gradeSel) return;
+    const isHigh = schoolName && (schoolName.includes('고등') || schoolName.endsWith('고'));
+    const isMiddle = schoolName && schoolName.includes('중학');
+    const all = [
+      { v: '중1', show: !isHigh }, { v: '중2', show: !isHigh }, { v: '중3', show: !isHigh },
+      { v: '고1', show: !isMiddle }, { v: '고2', show: !isMiddle }, { v: '고3', show: !isMiddle },
+    ];
+    const current = gradeSel.value;
+    gradeSel.innerHTML = '<option value="">학년 선택</option>';
+    all.filter(g => g.show).forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g.v;
+      opt.textContent = g.v;
+      if (g.v === current) opt.selected = true;
+      gradeSel.appendChild(opt);
+    });
+    // 현재 선택값이 필터 후 없으면 초기화
+    if (current && !all.filter(g => g.show).some(g => g.v === current)) {
+      gradeSel.value = '';
+    }
+  }
+
   function populateSchools(region) {
     const schoolSel = document.getElementById('register-school');
     if (!schoolSel) return;
@@ -36,6 +59,7 @@
       opt.textContent = s;
       schoolSel.appendChild(opt);
     });
+    filterGradesBySchool('');
   }
 
   function showError(id, show) {
@@ -135,6 +159,11 @@
 
     if (regionSel) {
       regionSel.addEventListener('change', () => populateSchools(regionSel.value));
+    }
+
+    const schoolSel = document.getElementById('register-school');
+    if (schoolSel) {
+      schoolSel.addEventListener('change', () => filterGradesBySchool(schoolSel.value));
     }
 
     if (loginForm) {
