@@ -1,4 +1,4 @@
-const API_BASE = 'https://exam.justineng.net/exam';
+const API_BASE = 'https://pfexam.classby.kr/exam';
 
 async function readJsonResponse(response) {
   const data = await response.json().catch(() => ({}));
