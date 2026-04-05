@@ -45,7 +45,7 @@ table { width: 100%; border-collapse: collapse; }
 
 /* ── 레이아웃 ── */
 .container {
-  max-width: 640px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 20px 16px 40px;
 }
@@ -551,7 +551,21 @@ tr:last-child td { border-bottom: none; }
   padding: 24px 0;
 }
 
+/* ── 2단 문항 레이아웃 ── */
+#question-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
 /* ── 반응형 ── */
+@media (max-width: 768px) {
+  #question-container {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 480px) {
   body { font-size: 14px; }
 
