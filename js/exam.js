@@ -81,7 +81,8 @@
       : ['1', '2', '3', '4', '5'];
 
     // (A) ... ··· (B) ... 패턴 감지 → 표 형식
-    const abPat = /^\([A-Z]\)\s*.+?\s*(?:···|…|\.\.\.)\s*\([A-Z]\)\s*.+$/;
+    // 앞에 ①② 붙어 있을 수도 있음
+    const abPat = /^[①②③④⑤]?\s*\([A-Z]\)\s*.+?\s*(?:···|…|\.\.\.)\s*\([A-Z]\)\s*.+$/;
     const isABPair = options.every(o => abPat.test(String(o).trim()));
 
     if (isABPair) {
@@ -93,12 +94,13 @@
         <thead><tr><th></th><th>(${header[0]})</th><th>(${header[1]})</th></tr></thead><tbody>`;
       options.forEach((option, index) => {
         const val = String(index + 1);
-        const m = String(option).match(/^\(?[①②③④⑤\d]\)?\s*\(([A-Z])\)\s*(.+?)\s*(?:···|…|\.\.\.)\s*\(([A-Z])\)\s*(.+)$/);
-        const circled = ['①','②','③','④','⑤'][index] || val;
-        const aText = m ? m[2].trim() : option;
+        // 선두 ①② 제거 후 파싱
+        const clean = String(option).replace(/^[①②③④⑤]\s*/, '').trim();
+        const m = clean.match(/^\(([A-Z])\)\s*(.+?)\s*(?:···|…|\.\.\.)\s*\(([A-Z])\)\s*(.+)$/);
+        const aText = m ? m[2].trim() : clean;
         const bText = m ? m[4].trim() : '';
         html += `<tr>
-          <td><label class="ab-radio-label"><input type="radio" name="question-${question.question_no}" value="${val}"><span class="ab-num">${circled}</span></label></td>
+          <td><label class="ab-radio-label"><input type="radio" name="question-${question.question_no}" value="${val}"></label></td>
           <td>${aText}</td>
           <td>${bText}</td>
         </tr>`;
