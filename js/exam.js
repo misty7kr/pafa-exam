@@ -148,7 +148,7 @@
 
     container.querySelectorAll('[data-exam-id]').forEach((button) => {
       button.addEventListener('click', () => {
-        const exam = exams.find((item) => item.id === button.dataset.examId);
+        const exam = exams.find((item) => String(item.id) === button.dataset.examId);
         if (exam) {
           onSelect(exam);
         }
