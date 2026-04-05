@@ -99,8 +99,8 @@
         const m = clean.match(/^\(([A-Z])\)\s*(.+?)\s*(?:···|…|\.\.\.)\s*\(([A-Z])\)\s*(.+)$/);
         const aText = m ? m[2].trim() : clean;
         const bText = m ? m[4].trim() : '';
-        html += `<tr>
-          <td><label class="ab-radio-label"><input type="radio" name="question-${question.question_no}" value="${val}"></label></td>
+        html += `<tr onclick="this.querySelector('input[type=radio]').click()">
+          <td><input type="radio" name="question-${question.question_no}" value="${val}" onclick="event.stopPropagation()"></td>
           <td>${aText}</td>
           <td>${bText}</td>
         </tr>`;
