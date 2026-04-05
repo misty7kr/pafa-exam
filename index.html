@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>패파 시험 학생 로그인</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">패파 시험 학생 로그인</h1>
+        <p class="page-subtitle">로그인 또는 회원가입 후 시험에 응시할 수 있습니다.</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab-target="login">로그인</button>
+        <button type="button" class="tab-btn" data-tab-target="register">회원가입</button>
+      </div>
+
+      <div class="tab-panel active" data-tab-panel="login">
+        <form id="login-form">
+          <div class="input-group">
+            <label for="login-academy-code">학원 코드</label>
+            <input id="login-academy-code" name="academy_code" type="text" required>
+          </div>
+          <div class="input-group">
+            <label for="login-name">이름</label>
+            <input id="login-name" name="name" type="text" required>
+          </div>
+          <div class="input-group">
+            <label for="login-birthdate">생년월일 (6자리: 050101)</label>
+            <input id="login-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" required>
+          </div>
+          <button type="submit" class="btn btn-primary">로그인</button>
+        </form>
+      </div>
+
+      <div class="tab-panel" data-tab-panel="register">
+        <form id="register-form">
+          <div class="input-group">
+            <label for="register-academy-code">학원 코드</label>
+            <input id="register-academy-code" name="academy_code" type="text" required>
+          </div>
+          <div class="input-group">
+            <label for="register-name">이름</label>
+            <input id="register-name" name="name" type="text" required>
+          </div>
+          <div class="input-group">
+            <label for="register-birthdate">생년월일 (6자리: 050101)</label>
+            <input id="register-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" required>
+          </div>
+          <div class="input-group">
+            <label for="register-grade">학년</label>
+            <select id="register-grade" name="grade" required>
+              <option value="중1">중1</option>
+              <option value="중2">중2</option>
+              <option value="중3">중3</option>
+              <option value="고1">고1</option>
+              <option value="고2">고2</option>
+              <option value="고3">고3</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="register-class">반</label>
+            <input id="register-class" name="cls" type="text" required>
+          </div>
+          <div class="input-group">
+            <label for="register-school">학교</label>
+            <input id="register-school" name="school" type="text" required>
+          </div>
+          <button type="submit" class="btn btn-primary">가입하기</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

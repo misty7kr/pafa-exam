@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>패파 시험 응시</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1 class="page-title">시험 응시</h1>
+        <p class="page-subtitle" id="student-label"></p>
+      </div>
+      <div id="timer-display" class="timer">50:00</div>
+    </header>
+
+    <section class="card">
+      <div class="status-banner">응시할 시험을 선택하면 50분 타이머가 즉시 시작됩니다.</div>
+      <div id="exam-list"></div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-bottom: 12px;">답안표</h2>
+      <div id="answer-sheet" class="answer-sheet"></div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-bottom: 16px;">문항</h2>
+      <div id="question-container"></div>
+      <button type="button" id="submit-button" class="btn btn-primary" disabled>제출하기</button>
+    </section>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/exam.js"></script>
+  <script src="js/submit.js"></script>
+  <script>
+    (function () {
+      const storedStudent = sessionStorage.getItem('pafa_student');
+      if (!storedStudent) {
+        window.location.href = 'index.html';
+      }
+
+      const student = JSON.parse(storedStudent || '{}');
+      const studentLabel = document.getElementById('student-label');
+      const submitButton = document.getElementById('submit-button');
+
+      let currentAttemptId = '';
+      let currentQuestions = [];
+      let stopTimer = null;
+      let hasSubmitted = false;
+
+      studentLabel.textContent = `${student.name || ''} 학생`;
+
+      async function handleSubmit() {
+        if (!currentAttemptId || !currentQuestions.length || hasSubmitted) {
+          return;
+        }
+
+        hasSubmitted = true;
+        submitButton.disabled = true;
+        try {
+          await window.submitExam(currentAttemptId, currentQuestions);
+        } catch (error) {
+          hasSubmitted = false;
+          submitButton.disabled = false;
+          alert(error.message);
+        }
+      }
+
+      async function startSelectedExam(exam) {
+        if (!Array.isArray(exam.questions) || exam.questions.length === 0) {
+          alert('문항 데이터가 없는 시험입니다.');
+          return;
+        }
+
+        const attempt = await window.api.apiPost('/attempts/start', {
+          student_id: student.student_id,
+          exam_id: exam.id,
+        });
+
+        currentAttemptId = attempt.attempt_id;
+        currentQuestions = exam.questions;
+        hasSubmitted = false;
+
+        sessionStorage.setItem('pafa_answers', JSON.stringify({}));
+        sessionStorage.setItem(
+          'pafa_current_exam',
+          JSON.stringify({
+            exam_id: exam.id,
+            title: exam.title,
+          })
+        );
+
+        window.examApp.renderQuestions(currentQuestions);
+        submitButton.disabled = false;
+
+        if (typeof stopTimer === 'function') {
+          stopTimer();
+        }
+        stopTimer = window.examApp.startTimer(50 * 60, handleSubmit);
+      }
+
+      submitButton.addEventListener('click', handleSubmit);
+
+      window.api.apiGet('/exams', { student_id: student.student_id })
+        .then((exams) => {
+          window.examApp.renderExamList(exams, async (exam) => {
+            try {
+              await startSelectedExam(exam);
+            } catch (error) {
+              alert(error.message);
+            }
+          });
+        })
+        .catch((error) => {
+          alert(error.message);
+        });
+    })();
+  </script>
+</body>
+</html>
