@@ -511,21 +511,53 @@ table { width: 100%; border-collapse: collapse; }
   background: linear-gradient(135deg, #eef1ff 0%, #f0eeff 100%);
 }
 
+/* ── 답안표 사이드바 레이아웃 ── */
+.exam-body-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.question-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.answer-sidebar {
+  width: 160px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.answer-sidebar-card {
+  padding: 14px 12px !important;
+}
+
+.sidebar-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+
 /* ── 답안표 ── */
 .answer-sheet {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
 }
 
 .answer-sheet button {
-  height: 42px;
-  border-radius: 10px;
+  height: 32px;
+  border-radius: 7px;
   border: 1.5px solid var(--border);
   background: var(--white);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
   transition: all 0.15s;
 }
 
@@ -639,12 +671,22 @@ tr:last-child td { border-bottom: none; }
 
   .card { padding: 18px 16px; }
 
-  .answer-sheet {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+  .exam-body-layout {
+    flex-direction: column-reverse;
   }
 
-  .answer-sheet button { height: 38px; font-size: 12px; }
+  .answer-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+
+  .answer-sheet {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 5px;
+  }
+
+  .answer-sheet button { height: 34px; font-size: 11px; }
 
   .question-header { gap: 10px; }
 
@@ -656,5 +698,5 @@ tr:last-child td { border-bottom: none; }
   .page-header { padding: 24px 28px; }
   .page-title { font-size: 26px; }
   .card { padding: 28px; }
-  .answer-sheet { grid-template-columns: repeat(8, 1fr); }
+  .answer-sheet { grid-template-columns: repeat(3, 1fr); }
 }
