@@ -91,7 +91,10 @@
                 <div class="question-score">${question.type} · ${question.score || 0}점</div>
               </div>
             </div>
+            ${question.given ? `<div class="given-box">${question.given.replace(/\n/g, '<br>')}</div>` : ''}
             ${question.passage ? `<div class="passage-box">${question.passage.replace(/\n/g, '<br>')}</div>` : ''}
+            ${question.summary ? `<div class="summary-box">${question.summary.replace(/\n/g, '<br>')}</div>` : ''}
+            ${question.source ? `<div class="source-label">[출처] ${question.source}</div>` : ''}
             ${
               question.type === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
