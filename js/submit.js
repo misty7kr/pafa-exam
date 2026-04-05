@@ -17,7 +17,9 @@
       return { question_no: question.question_no, student_answer };
     });
 
-    const result = await window.api.apiPost(`/student/attempts/${attempt_id}/submit`, { answers });
+    const startedAt = parseInt(localStorage.getItem('pafa_exam_started') || '0', 10);
+    const duration_sec = startedAt ? Math.round((Date.now() - startedAt) / 1000) : null;
+    const result = await window.api.apiPost(`/student/attempts/${attempt_id}/submit`, { answers, duration_sec });
 
     const examState = JSON.parse(localStorage.getItem('pafa_current_exam') || sessionStorage.getItem('pafa_current_exam') || '{}');
     const student = JSON.parse(localStorage.getItem('pafa_student') || sessionStorage.getItem('pafa_student') || '{}');

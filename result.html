@@ -59,8 +59,21 @@
       const result = JSON.parse(storedResult);
       const percentage = result.max_score ? Math.round((result.total_score / result.max_score) * 100) : 0;
 
+      function parseExamTitle(raw) {
+        if (!raw) return raw;
+        return raw
+          .replace(/\.json$/i, '')
+          .replace(/^패파리그_/, '')
+          .replace(/_(최고난도|심화|고난도|기본)/g, '')
+          .replace(/_[A-Z0-9]_동형등록$/i, '')
+          .replace(/_동형등록$/i, '')
+          .replace(/고([123])/, '$1학년')
+          .replace(/_/g, ' ')
+          .trim();
+      }
+
       document.getElementById('result-student').textContent = `${result.student_name || ''} 학생`;
-      document.getElementById('result-title').textContent = result.exam_title || '시험';
+      document.getElementById('result-title').textContent = parseExamTitle(result.exam_title) || '시험';
       document.getElementById('result-score').textContent = `${result.total_score ?? 0} / ${result.max_score ?? 0}`;
       document.getElementById('result-rate-label').textContent = `정답률 ${percentage}%`;
       setTimeout(() => {
@@ -73,7 +86,7 @@
             <td>${item.question_no}</td>
             <td>${item.answer || '-'}</td>
             <td>${item.correct_answer || '-'}</td>
-            <td class="${item.score > 0 ? 'score-correct' : 'score-wrong'}">${item.score}</td>
+            <td class="${item.score > 0 ? 'score-correct' : 'score-wrong'}">${item.score}<span style="color:var(--muted);font-weight:400">/${item.max_score ?? ''}</span></td>
           </tr>
         `)
         .join('');

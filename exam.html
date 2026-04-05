@@ -90,6 +90,7 @@
         document.getElementById('exam-body-layout').style.display = '';
         window.examApp.renderQuestions(currentQuestions);
         submitButton.disabled = false;
+        localStorage.setItem('pafa_exam_started', String(Date.now()));
 
         if (typeof stopTimer === 'function') stopTimer();
         stopTimer = window.examApp.startTimer(50 * 60, handleSubmit);
