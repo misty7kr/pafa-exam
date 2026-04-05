@@ -371,6 +371,13 @@ table { width: 100%; border-collapse: collapse; }
   line-height: 1.5;
 }
 
+.question-text u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  font-weight: 900;
+}
+
 .question-score {
   color: var(--muted);
   font-size: 13px;
@@ -404,6 +411,43 @@ table { width: 100%; border-collapse: collapse; }
   text-align: justify;
 }
 
+/* ── (A)···(B) 선지 표 ── */
+.ab-choice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+}
+.ab-choice-table thead th {
+  font-weight: 700;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+.ab-choice-table thead th:first-child { width: 36px; }
+.ab-choice-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.ab-choice-table tbody tr:last-child { border-bottom: none; }
+.ab-choice-table tbody td {
+  padding: 8px 10px;
+  vertical-align: middle;
+  color: var(--text);
+}
+.ab-choice-table tbody td:first-child { text-align: center; }
+.ab-radio-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.ab-radio-label input[type="radio"] { accent-color: var(--accent); }
+.ab-num { font-weight: 700; }
+.ab-choice-table tbody tr:has(input:checked) td { background: var(--active-bg, #eef3ff); }
+
 /* ── 출처 인라인 ── */
 .source-inline {
   font-size: 11px;
@@ -419,6 +463,13 @@ table { width: 100%; border-collapse: collapse; }
   border-bottom: 2px solid var(--navy);
   vertical-align: bottom;
   margin: 0 2px;
+}
+
+/* ── 지칭추론 밑줄 단어 ── */
+.ref-word {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1.5px;
 }
 
 /* ── 서머리 박스 ── */

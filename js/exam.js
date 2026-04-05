@@ -59,10 +59,53 @@
     });
   }
 
+  function renderQuestionTitle(text) {
+    if (!text) return text;
+    // 한국어 부정어
+    text = text.replace(/(않[는은]\s*것은|않[는은]\s*것을|아닌\s*것은|아닌\s*것을|없는\s*것은|없는\s*것을|틀린\s*것은|틀린\s*것을)/g, '<u>$1</u>');
+    // 영어 부정/핵심어 (단어 경계 기준)
+    text = text.replace(/\b(NOT|EXCEPT|inappropriate|incorrect|wrong|false|least|unlikely|unsuitable|improper)\b/g, '<u>$1</u>');
+    return text;
+  }
+
+  function renderPassageText(text) {
+    return text
+      .replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<span class="ref-word">$2</span>')
+      .replace(/_{3,}/g, '<span class="blank"></span>')
+      .replace(/\n/g, '<br>');
+  }
+
   function buildChoices(question) {
     const options = Array.isArray(question.options) && question.options.length > 0
       ? question.options
       : ['1', '2', '3', '4', '5'];
+
+    // (A) ... ··· (B) ... 패턴 감지 → 표 형식
+    const abPat = /^\([A-Z]\)\s*.+?\s*(?:···|…|\.\.\.)\s*\([A-Z]\)\s*.+$/;
+    const isABPair = options.every(o => abPat.test(String(o).trim()));
+
+    if (isABPair) {
+      const header = (() => {
+        const m = String(options[0]).match(/\(([A-Z])\).*?(?:···|…|\.\.\.)\s*\(([A-Z])\)/);
+        return m ? [m[1], m[2]] : ['A', 'B'];
+      })();
+      let html = `<table class="ab-choice-table">
+        <thead><tr><th></th><th>(${header[0]})</th><th>(${header[1]})</th></tr></thead><tbody>`;
+      options.forEach((option, index) => {
+        const val = String(index + 1);
+        const m = String(option).match(/^\(?[①②③④⑤\d]\)?\s*\(([A-Z])\)\s*(.+?)\s*(?:···|…|\.\.\.)\s*\(([A-Z])\)\s*(.+)$/);
+        const circled = ['①','②','③','④','⑤'][index] || val;
+        const aText = m ? m[2].trim() : option;
+        const bText = m ? m[4].trim() : '';
+        html += `<tr>
+          <td><label class="ab-radio-label"><input type="radio" name="question-${question.question_no}" value="${val}"><span class="ab-num">${circled}</span></label></td>
+          <td>${aText}</td>
+          <td>${bText}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      return html;
+    }
 
     return options
       .map(
@@ -87,20 +130,20 @@
             <div class="question-header">
               <div class="question-badge">${question.question_no}</div>
               <div class="question-meta">
-                <div class="question-text">${question.title || question.question || `문항 ${question.question_no}`}</div>
+                <div class="question-text">${renderQuestionTitle(question.title || question.question || `문항 ${question.question_no}`)}</div>
                 <div class="question-score">
                   ${question.qtype || question.type} · ${question.score || 0}점
                   ${question.source ? `<span class="source-inline">[출처] ${question.source}</span>` : ''}
                 </div>
               </div>
             </div>
-            ${question.given ? `<div class="given-box">${question.given.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
-            ${question.passage ? `<div class="passage-box">${question.passage.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
-            ${question.summary ? `<div class="summary-box">${question.summary.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
+            ${question.given ? `<div class="given-box">${renderPassageText(question.given)}</div>` : ''}
+            ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage)}</div>` : ''}
+            ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
             ${
               question.type === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
-                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${question.qtype === '지칭추론' ? '예) ① they  ② it  ③ the machine  ④ its  ⑤ its' : '답을 입력하세요.'}"></textarea></div>`
+                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${question.qtype === '지칭추론' ? '예) 1. they  2. it  3. the machine  4. its  5. its' : question.qtype === '어법' ? '예) 2. divert  3. become  5. remained' : '답을 입력하세요.'}"></textarea></div>`
             }
           </section>
         `
