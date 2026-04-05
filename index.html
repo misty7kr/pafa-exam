@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>패파 시험 학생 로그인</title>
+  <title>패파리그 EXAM</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="container">
     <header class="page-header">
-      <div>
-        <h1 class="page-title">패파 시험 학생 로그인</h1>
-        <p class="page-subtitle">로그인 또는 회원가입 후 시험에 응시할 수 있습니다.</p>
+      <div class="header-brand">
+        <div class="header-logo">P</div>
+        <div>
+          <h1 class="page-title">패파리그 <span>EXAM</span></h1>
+          <p class="page-subtitle">학원코드 · 이름 · 생년월일로 로그인하세요</p>
+        </div>
       </div>
     </header>
 
@@ -22,40 +25,47 @@
       </div>
 
       <div class="tab-panel active" data-tab-panel="login">
-        <form id="login-form">
+        <form id="login-form" novalidate>
           <div class="input-group">
-            <label for="login-academy-code">학원 코드</label>
-            <input id="login-academy-code" name="academy_code" type="text" required>
+            <label for="login-academy-code">학원 코드 <span class="required-mark">*</span> <span class="label-hint">저스틴 J · 패스파인더 P · 4.0 4 (대소문자 무관)</span></label>
+            <input id="login-academy-code" name="academy_code" type="text" placeholder="J / P / 4" autocomplete="off">
+            <div class="field-error" id="err-login-academy">학원 코드를 입력하세요.</div>
           </div>
           <div class="input-group">
-            <label for="login-name">이름</label>
-            <input id="login-name" name="name" type="text" required>
+            <label for="login-name">이름 <span class="required-mark">*</span></label>
+            <input id="login-name" name="name" type="text" placeholder="홍길동" autocomplete="name">
+            <div class="field-error" id="err-login-name">이름을 입력하세요.</div>
           </div>
           <div class="input-group">
-            <label for="login-birthdate">생년월일 (6자리: 050101)</label>
-            <input id="login-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" required>
+            <label for="login-birthdate">생년월일 6자리 <span class="required-mark">*</span></label>
+            <input id="login-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" inputmode="numeric">
+            <div class="field-error" id="err-login-birthdate">생년월일 6자리를 입력하세요 (예: 050101).</div>
           </div>
           <button type="submit" class="btn btn-primary">로그인</button>
         </form>
       </div>
 
       <div class="tab-panel" data-tab-panel="register">
-        <form id="register-form">
+        <form id="register-form" novalidate>
           <div class="input-group">
-            <label for="register-academy-code">학원 코드</label>
-            <input id="register-academy-code" name="academy_code" type="text" required>
+            <label for="register-academy-code">학원 코드 <span class="required-mark">*</span> <span class="label-hint">저스틴 J · 패스파인더 P · 4.0 4 (대소문자 무관)</span></label>
+            <input id="register-academy-code" name="academy_code" type="text" placeholder="J / P / 4" autocomplete="off">
+            <div class="field-error" id="err-reg-academy">학원 코드를 입력하세요.</div>
           </div>
           <div class="input-group">
-            <label for="register-name">이름</label>
-            <input id="register-name" name="name" type="text" required>
+            <label for="register-name">이름 <span class="required-mark">*</span></label>
+            <input id="register-name" name="name" type="text" placeholder="홍길동" autocomplete="name">
+            <div class="field-error" id="err-reg-name">이름을 입력하세요.</div>
           </div>
           <div class="input-group">
-            <label for="register-birthdate">생년월일 (6자리: 050101)</label>
-            <input id="register-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" required>
+            <label for="register-birthdate">생년월일 6자리 <span class="required-mark">*</span></label>
+            <input id="register-birthdate" name="birthdate" type="text" maxlength="6" pattern="[0-9]{6}" placeholder="050101" inputmode="numeric">
+            <div class="field-error" id="err-reg-birthdate">생년월일 6자리를 입력하세요 (예: 050101).</div>
           </div>
           <div class="input-group">
-            <label for="register-grade">학년</label>
-            <select id="register-grade" name="grade" required>
+            <label for="register-grade">학년 <span class="required-mark">*</span></label>
+            <select id="register-grade" name="grade">
+              <option value="">학년 선택</option>
               <option value="중1">중1</option>
               <option value="중2">중2</option>
               <option value="중3">중3</option>
@@ -63,14 +73,23 @@
               <option value="고2">고2</option>
               <option value="고3">고3</option>
             </select>
+            <div class="field-error" id="err-reg-grade">학년을 선택하세요.</div>
           </div>
           <div class="input-group">
-            <label for="register-class">반</label>
-            <input id="register-class" name="cls" type="text" required>
+            <label for="register-region">지역 <span class="required-mark">*</span></label>
+            <select id="register-region" name="region">
+              <option value="">지역 선택</option>
+              <option value="인천">인천</option>
+              <option value="부천">부천</option>
+              <option value="세종">세종</option>
+            </select>
           </div>
           <div class="input-group">
-            <label for="register-school">학교</label>
-            <input id="register-school" name="school" type="text" required>
+            <label for="register-school">학교 <span class="required-mark">*</span></label>
+            <select id="register-school" name="school">
+              <option value="">지역을 먼저 선택하세요</option>
+            </select>
+            <div class="field-error" id="err-reg-school">학교를 선택하세요.</div>
           </div>
           <button type="submit" class="btn btn-primary">가입하기</button>
         </form>

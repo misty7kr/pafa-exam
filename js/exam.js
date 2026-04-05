@@ -1,7 +1,7 @@
 (function () {
   function getStoredAnswers() {
     try {
-      return JSON.parse(sessionStorage.getItem('pafa_answers') || '{}');
+      return JSON.parse(localStorage.getItem('pafa_answers') || sessionStorage.getItem('pafa_answers') || '{}');
     } catch (error) {
       return {};
     }
@@ -23,7 +23,7 @@
       }
     });
 
-    sessionStorage.setItem('pafa_answers', JSON.stringify(answers));
+    localStorage.setItem('pafa_answers', JSON.stringify(answers));
     updateAnswerSheet();
   }
 

@@ -3,22 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>패파 시험 결과</title>
+  <title>패파리그 EXAM — 시험 결과</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="container">
     <header class="page-header">
-      <div>
-        <h1 class="page-title">시험 결과</h1>
-        <p class="page-subtitle">응시 결과를 확인하세요.</p>
+      <div class="header-brand">
+        <div class="header-logo">P</div>
+        <div>
+          <h1 class="page-title">패파리그 <span>EXAM</span></h1>
+          <p class="page-subtitle">시험 결과</p>
+        </div>
       </div>
     </header>
 
     <section class="card">
       <div class="result-summary">
         <div class="muted" id="result-student"></div>
-        <h2 id="result-title"></h2>
+        <div class="result-label" id="result-title"></div>
         <div class="result-score" id="result-score"></div>
         <div class="muted" id="result-rate-label"></div>
         <div class="progress-track">
@@ -28,12 +31,13 @@
     </section>
 
     <section class="card">
+      <h2 style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:16px;">문항별 결과</h2>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
               <th>번호</th>
-              <th>내답</th>
+              <th>내 답</th>
               <th>정답</th>
               <th>득점</th>
             </tr>
@@ -43,36 +47,35 @@
       </div>
     </section>
 
-    <button type="button" class="btn btn-secondary" id="retry-button">다시시험보기</button>
+    <button type="button" class="btn btn-secondary" id="retry-button">다시 시험보기</button>
   </div>
 
   <script src="js/api.js"></script>
   <script>
     (function () {
-      const storedResult = sessionStorage.getItem('pafa_result');
-      if (!storedResult) {
-        window.location.href = 'index.html';
-      }
+      const storedResult = localStorage.getItem('pafa_result') || sessionStorage.getItem('pafa_result');
+      if (!storedResult) { window.location.href = 'index.html'; return; }
 
-      const result = JSON.parse(storedResult || '{}');
+      const result = JSON.parse(storedResult);
       const percentage = result.max_score ? Math.round((result.total_score / result.max_score) * 100) : 0;
 
       document.getElementById('result-student').textContent = `${result.student_name || ''} 학생`;
       document.getElementById('result-title').textContent = result.exam_title || '시험';
-      document.getElementById('result-score').textContent = `${result.total_score || 0} / ${result.max_score || 0}`;
+      document.getElementById('result-score').textContent = `${result.total_score ?? 0} / ${result.max_score ?? 0}`;
       document.getElementById('result-rate-label').textContent = `정답률 ${percentage}%`;
-      document.getElementById('result-progress').style.width = `${percentage}%`;
+      setTimeout(() => {
+        document.getElementById('result-progress').style.width = `${percentage}%`;
+      }, 100);
+
       document.getElementById('result-table-body').innerHTML = (result.responses || [])
-        .map(
-          (item) => `
-            <tr>
-              <td>${item.question_no}</td>
-              <td>${item.answer || '-'}</td>
-              <td>${item.correct_answer || '-'}</td>
-              <td>${item.score}</td>
-            </tr>
-          `
-        )
+        .map((item) => `
+          <tr>
+            <td>${item.question_no}</td>
+            <td>${item.answer || '-'}</td>
+            <td>${item.correct_answer || '-'}</td>
+            <td class="${item.score > 0 ? 'score-correct' : 'score-wrong'}">${item.score}</td>
+          </tr>
+        `)
         .join('');
 
       document.getElementById('retry-button').addEventListener('click', () => {
