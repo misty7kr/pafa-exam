@@ -88,7 +88,7 @@
               <div class="question-badge">${question.question_no}</div>
               <div class="question-meta">
                 <div class="question-text">${question.title || question.question || `문항 ${question.question_no}`}</div>
-                <div class="question-score">${question.type} · ${question.score || 0}점</div>
+                <div class="question-score">${question.qtype || question.type} · ${question.score || 0}점</div>
               </div>
             </div>
             ${question.given ? `<div class="given-box">${question.given.replace(/\n/g, '<br>')}</div>` : ''}
