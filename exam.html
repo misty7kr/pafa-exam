@@ -67,16 +67,17 @@
       }
 
       async function startSelectedExam(exam) {
-        if (!Array.isArray(exam.questions) || exam.questions.length === 0) {
-          alert('문항 데이터가 없는 시험입니다.');
-          return;
-        }
-        const attempt = await window.api.apiPost('/attempts/start', {
+        const attempt = await window.api.apiPost('/student/attempts', {
           student_id: student.student_id,
           exam_id: exam.id,
         });
         currentAttemptId = attempt.attempt_id;
-        currentQuestions = exam.questions;
+        const attemptData = await window.api.apiGet(`/student/attempts/${attempt.attempt_id}`, {});
+        if (!Array.isArray(attemptData.questions) || attemptData.questions.length === 0) {
+          alert('문항 데이터가 없는 시험입니다.');
+          return;
+        }
+        currentQuestions = attemptData.questions;
         hasSubmitted = false;
 
         localStorage.setItem('pafa_answers', JSON.stringify({}));
@@ -93,7 +94,7 @@
 
       submitButton.addEventListener('click', handleSubmit);
 
-      window.api.apiGet('/exams', { student_id: student.student_id })
+      window.api.apiGet('/student/exams', { student_id: student.student_id })
         .then((exams) => {
           window.examApp.renderExamList(exams, async (exam) => {
             try { await startSelectedExam(exam); }

@@ -91,6 +91,7 @@
                 <div class="question-score">${question.type} · ${question.score || 0}점</div>
               </div>
             </div>
+            ${question.passage ? `<div class="passage-box">${question.passage.replace(/\n/g, '<br>')}</div>` : ''}
             ${
               question.type === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
@@ -137,9 +138,9 @@
     container.innerHTML = exams
       .map(
         (exam) => `
-          <button type="button" class="exam-card" data-exam-id="${exam.id}">
+          <button type="button" class="exam-card" data-exam-id="${exam.id}" ${exam.completed_attempt_id ? 'disabled' : ''}>
             <h3>${exam.title}</h3>
-            <p class="muted">문항 수 ${exam.questions.length}개</p>
+            <p class="muted">${exam.completed_attempt_id ? '응시 완료' : '응시 가능'}</p>
           </button>
         `
       )
