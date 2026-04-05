@@ -478,12 +478,12 @@ table { width: 100%; border-collapse: collapse; }
 .summary-box {
   font-size: 14px;
   line-height: 1.8;
-  color: var(--navy3);
+  color: var(--text);
   margin-bottom: 14px;
   padding: 14px 16px;
-  background: #f0f3ff;
+  background: var(--white);
   border-radius: 10px;
-  border: 1px dashed var(--navy3);
+  border: 2px solid var(--border);
   text-align: justify;
 }
 
