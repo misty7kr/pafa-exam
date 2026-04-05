@@ -3,7 +3,7 @@ const API_BASE = 'https://pfexam.classby.kr/exam';
 async function readJsonResponse(response) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || '요청 처리에 실패했습니다.');
+    throw new Error(data.message || data.error || '요청 처리에 실패했습니다.');
   }
   return data;
 }
