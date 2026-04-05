@@ -177,6 +177,19 @@
     loadAnswers();
   }
 
+  function parseExamTitle(raw) {
+    if (!raw) return raw;
+    return raw
+      .replace(/\.json$/i, '')
+      .replace(/^패파리그_/, '')
+      .replace(/_(최고난도|심화|고난도|기본)/g, '')
+      .replace(/_[A-Z0-9]_동형등록$/i, '')
+      .replace(/_동형등록$/i, '')
+      .replace(/고([123])/, '$1학년')
+      .replace(/_/g, ' ')
+      .trim();
+  }
+
   function renderExamList(exams, onSelect) {
     const container = document.getElementById('exam-list');
 
@@ -189,7 +202,7 @@
       .map(
         (exam) => `
           <button type="button" class="exam-card" data-exam-id="${exam.id}" ${exam.completed_attempt_id ? 'disabled' : ''}>
-            <h3>${exam.title}</h3>
+            <h3>${parseExamTitle(exam.title)}</h3>
             <p class="muted">${exam.completed_attempt_id ? '응시 완료' : '응시 가능'}</p>
           </button>
         `
