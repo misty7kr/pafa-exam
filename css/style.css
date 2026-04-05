@@ -448,7 +448,7 @@ table { width: 100%; border-collapse: collapse; }
   cursor: pointer;
 }
 .ab-radio-label input[type="radio"] { accent-color: var(--accent); }
-.ab-choice-table tbody tr:has(input:checked) td { background: var(--active-bg, #eef3ff); }
+.ab-choice-table tbody tr:has(input:checked) td { background: #eef1f8; }
 
 /* ── 출처 인라인 ── */
 .source-inline {
@@ -508,7 +508,7 @@ table { width: 100%; border-collapse: collapse; }
 
 .choice-item:has(input:checked) {
   border-color: var(--navy);
-  background: linear-gradient(135deg, #eef1ff 0%, #f0eeff 100%);
+  background: #eef1f8;
 }
 
 /* ── 답안표 사이드바 레이아웃 ── */
