@@ -287,7 +287,7 @@
     }
 
     if (loginForm) {
-      loginForm.querySelectorAll('input').forEach((inp) => {
+      loginForm.querySelectorAll('input, select').forEach((inp) => {
         inp.addEventListener('input', () => {
           inp.classList.remove('input-invalid');
           const errId = inp.closest('.input-group')?.querySelector('.field-error')?.id;

@@ -27,9 +27,14 @@
       <div class="tab-panel active" data-tab-panel="login">
         <form id="login-form" novalidate>
           <div class="input-group">
-            <label for="login-academy-code">학원 코드 <span class="required-mark">*</span> <span class="label-hint">저스틴 J · 패스파인더 P · 4.0 4 (대소문자 무관)</span></label>
-            <input id="login-academy-code" name="academy_code" type="text" placeholder="J / P / 4" autocomplete="off">
-            <div class="field-error" id="err-login-academy">학원 코드를 입력하세요.</div>
+            <label for="login-academy-code">학원 <span class="required-mark">*</span></label>
+            <select id="login-academy-code" name="academy_code">
+              <option value="">학원 선택</option>
+              <option value="J">저스틴영어학원</option>
+              <option value="P">패스파인더</option>
+              <option value="4">4.0</option>
+            </select>
+            <div class="field-error" id="err-login-academy">학원을 선택하세요.</div>
           </div>
           <div class="input-group">
             <label for="login-name">이름 <span class="required-mark">*</span></label>
@@ -48,9 +53,14 @@
       <div class="tab-panel" data-tab-panel="register">
         <form id="register-form" novalidate>
           <div class="input-group">
-            <label for="register-academy-code">학원 코드 <span class="required-mark">*</span> <span class="label-hint">저스틴 J · 패스파인더 P · 4.0 4 (대소문자 무관)</span></label>
-            <input id="register-academy-code" name="academy_code" type="text" placeholder="J / P / 4" autocomplete="off">
-            <div class="field-error" id="err-reg-academy">학원 코드를 입력하세요.</div>
+            <label for="register-academy-code">학원 <span class="required-mark">*</span></label>
+            <select id="register-academy-code" name="academy_code">
+              <option value="">학원 선택</option>
+              <option value="J">저스틴영어학원</option>
+              <option value="P">패스파인더</option>
+              <option value="4">4.0</option>
+            </select>
+            <div class="field-error" id="err-reg-academy">학원을 선택하세요.</div>
           </div>
           <div class="input-group">
             <label for="register-name">이름 <span class="required-mark">*</span></label>
