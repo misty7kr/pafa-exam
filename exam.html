@@ -108,5 +108,26 @@
         .catch((error) => { alert(error.message); });
     })();
   </script>
+<script>
+(function(){
+  const DEV_HOSTS = ['localhost','127.0.0.1','106.250.201.250',''];
+  const isDebug = new URLSearchParams(location.search).get('debug') === '7958';
+  if (DEV_HOSTS.includes(location.hostname) || isDebug || location.protocol === 'file:') return;
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12') { e.preventDefault(); return false; }
+    if (e.ctrlKey && e.shiftKey && ['I','i','J','j','C','c'].includes(e.key)) { e.preventDefault(); return false; }
+    if (e.ctrlKey && ['u','U','s','S'].includes(e.key)) { e.preventDefault(); return false; }
+  }, true);
+  document.addEventListener('contextmenu', function(e) { e.preventDefault(); return false; }, true);
+  let _dtOpen = false;
+  setInterval(function() {
+    const w = window.outerWidth - window.innerWidth > 160;
+    const h = window.outerHeight - window.innerHeight > 160;
+    if (w || h) { if (!_dtOpen) { _dtOpen = true; console.clear(); } } else { _dtOpen = false; }
+  }, 1000);
+  if (new URLSearchParams(location.search).get('debug') !== '7958') { console.log = () => {}; console.warn = () => {}; }
+  document.addEventListener('dragstart', function(e) { e.preventDefault(); });
+})();
+</script>
 </body>
 </html>
