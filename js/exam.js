@@ -88,13 +88,15 @@
               <div class="question-badge">${question.question_no}</div>
               <div class="question-meta">
                 <div class="question-text">${question.title || question.question || `문항 ${question.question_no}`}</div>
-                <div class="question-score">${question.qtype || question.type} · ${question.score || 0}점</div>
+                <div class="question-score">
+                  ${question.qtype || question.type} · ${question.score || 0}점
+                  ${question.source ? `<span class="source-inline">[출처] ${question.source}</span>` : ''}
+                </div>
               </div>
             </div>
-            ${question.given ? `<div class="given-box">${question.given.replace(/\n/g, '<br>')}</div>` : ''}
-            ${question.passage ? `<div class="passage-box">${question.passage.replace(/\n/g, '<br>')}</div>` : ''}
-            ${question.summary ? `<div class="summary-box">${question.summary.replace(/\n/g, '<br>')}</div>` : ''}
-            ${question.source ? `<div class="source-label">[출처] ${question.source}</div>` : ''}
+            ${question.given ? `<div class="given-box">${question.given.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
+            ${question.passage ? `<div class="passage-box">${question.passage.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
+            ${question.summary ? `<div class="summary-box">${question.summary.replace(/\n/g, '<br>').replace(/_{3,}/g, '<span class="blank"></span>')}</div>` : ''}
             ${
               question.type === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
