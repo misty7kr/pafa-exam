@@ -474,6 +474,19 @@ table { width: 100%; border-collapse: collapse; }
   text-decoration-thickness: 1.5px;
 }
 
+/* ── 조건 박스 ── */
+.condition-box {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  white-space: pre-line;
+}
+
 /* ── 서머리 박스 ── */
 .summary-box {
   font-size: 14px;

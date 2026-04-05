@@ -121,14 +121,33 @@
       .join('');
   }
 
+  function getSubjectivePlaceholder(question) {
+    if (question.qtype === '지칭추론') return '예) 1. they  2. it  3. the machine  4. its  5. its';
+    if (question.qtype === '어법') return '예) 2. divert  3. become  5. remained';
+    if (question.qtype === '어휘') return '예) 4. expense→cost  7. restricts→expands';
+    return '답을 입력하세요.';
+  }
+
+  function isSubjectiveOverride(question) {
+    // 어휘 유형이지만 "고치시오" 지시문이 있으면 주관식으로 처리
+    if (question.qtype === '어휘') {
+      const title = question.title || question.question || '';
+      if (title.includes('고치시오')) return true;
+    }
+    return false;
+  }
+
   function renderQuestions(questions) {
     const questionContainer = document.getElementById('question-container');
     const answerSheet = document.getElementById('answer-sheet');
 
     questionContainer.innerHTML = questions
       .map(
-        (question) => `
-          <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${question.type}">
+        (question) => {
+          const forceSubjective = isSubjectiveOverride(question);
+          const renderType = (question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식';
+          return `
+          <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
               <div class="question-badge">${question.question_no}</div>
               <div class="question-meta">
@@ -141,14 +160,16 @@
             </div>
             ${question.given ? `<div class="given-box">${renderPassageText(question.given)}</div>` : ''}
             ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage)}</div>` : ''}
+            ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
             ${
-              question.type === '객관식'
+              renderType === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
-                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${question.qtype === '지칭추론' ? '예) 1. they  2. it  3. the machine  4. its  5. its' : question.qtype === '어법' ? '예) 2. divert  3. become  5. remained' : '답을 입력하세요.'}"></textarea></div>`
+                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${getSubjectivePlaceholder(question)}"></textarea></div>`
             }
           </section>
-        `
+        `;
+        }
       )
       .join('');
 
