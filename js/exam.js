@@ -100,7 +100,7 @@
             ${
               question.type === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
-                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="답을 입력하세요."></textarea></div>`
+                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${question.qtype === '지칭추론' ? '예) ① they  ② it  ③ the machine  ④ its  ⑤ its' : '답을 입력하세요.'}"></textarea></div>`
             }
           </section>
         `
