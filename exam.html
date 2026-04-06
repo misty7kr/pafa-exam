@@ -105,19 +105,26 @@
           window.examApp.renderExamList(exams, async (exam) => {
             // 응시 완료 → 결과 페이지로 이동
             if (exam.completed_attempt_id) {
-              const result = sessionStorage.getItem('pafa_result') || localStorage.getItem('pafa_result');
-              if (result) {
-                window.location.href = 'result.html';
-              } else {
-                // 결과 데이터 재조회
+              // #5 캐시 오염 방지: attempt_id 대조
+              const cached = sessionStorage.getItem('pafa_result') || localStorage.getItem('pafa_result');
+              if (cached) {
                 try {
-                  const detail = await window.api.apiGet(`/student/attempts/${exam.completed_attempt_id}/result`, {});
-                  const store = JSON.stringify(detail);
-                  try { localStorage.setItem('pafa_result', store); } catch(_) {}
-                  sessionStorage.setItem('pafa_result', store);
-                  window.location.href = 'result.html';
-                } catch(_) { alert('결과를 불러올 수 없습니다.'); }
+                  const parsed = JSON.parse(cached);
+                  if (String(parsed.attempt_id) === String(exam.completed_attempt_id)) {
+                    window.location.href = 'result.html';
+                    return;
+                  }
+                } catch(_) {}
               }
+              // 캐시 없거나 다른 시험 결과 → API 재조회
+              try {
+                // #2 IDOR: student_id 포함
+                const detail = await window.api.apiGet(`/student/attempts/${exam.completed_attempt_id}/result`, { student_id: student.student_id });
+                const store = JSON.stringify({ ...detail, attempt_id: exam.completed_attempt_id });
+                try { localStorage.setItem('pafa_result', store); } catch(_) {}
+                sessionStorage.setItem('pafa_result', store);
+                window.location.href = 'result.html';
+              } catch(_) { alert('결과를 불러올 수 없습니다.'); }
               return;
             }
             try { await startSelectedExam(exam); }

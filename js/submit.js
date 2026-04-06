@@ -24,6 +24,7 @@
     const examState = JSON.parse(localStorage.getItem('pafa_current_exam') || sessionStorage.getItem('pafa_current_exam') || '{}');
     const student = JSON.parse(localStorage.getItem('pafa_student') || sessionStorage.getItem('pafa_student') || '{}');
     const resultData = JSON.stringify({
+      attempt_id: result.attempt_id || attempt_id, // #5 캐시 대조용
       student_name: student.name || '',
       exam_title: examState.title || '',
       total_score: result.total_score || 0,
