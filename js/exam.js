@@ -245,11 +245,17 @@
     let remaining = durationSec;
     let expired = false;
 
+    const timerDisplaySub = document.getElementById('timer-display-sub');
     function render() {
       const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
       const seconds = String(remaining % 60).padStart(2, '0');
-      timerDisplay.textContent = `${minutes}:${seconds}`;
+      const text = `${minutes}:${seconds}`;
+      timerDisplay.textContent = text;
       timerDisplay.classList.toggle('warning', remaining <= 600);
+      if (timerDisplaySub) {
+        timerDisplaySub.textContent = text;
+        timerDisplaySub.style.color = remaining <= 600 ? '#e53e3e' : 'var(--navy)';
+      }
     }
 
     render();
