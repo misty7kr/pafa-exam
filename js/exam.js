@@ -222,9 +222,9 @@
     container.innerHTML = exams
       .map(
         (exam) => `
-          <button type="button" class="exam-card" data-exam-id="${exam.id}" ${exam.completed_attempt_id ? 'disabled' : ''}>
+          <button type="button" class="exam-card" data-exam-id="${exam.id}" data-attempt-id="${exam.completed_attempt_id || ''}">
             <h3>${parseExamTitle(exam.title)}</h3>
-            <p class="muted">${exam.completed_attempt_id ? '응시 완료' : '응시 가능'}</p>
+            <p class="muted">${exam.completed_attempt_id ? '응시 완료 — 결과 보기' : '응시 가능'}</p>
           </button>
         `
       )

@@ -81,15 +81,43 @@
         document.getElementById('result-progress').style.width = `${percentage}%`;
       }, 100);
 
+      const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      // JSON 형태 정답(어법/어휘) → "① goes  ⑤ go" 표시
+      function fmtAnswer(s) {
+        if (!s) return '-';
+        try {
+          const obj = JSON.parse(s);
+          if (typeof obj === 'object' && !Array.isArray(obj)) {
+            return escHtml(Object.entries(obj).map(([k,v])=>`${k} ${v}`).join('  '));
+          }
+        } catch(_) {}
+        return escHtml(s);
+      }
       document.getElementById('result-table-body').innerHTML = (result.responses || [])
-        .map((item) => `
-          <tr>
-            <td>${item.question_no}</td>
-            <td>${item.answer || '-'}</td>
-            <td>${item.correct_answer || '-'}</td>
-            <td class="${item.score > 0 ? 'score-correct' : 'score-wrong'}">${item.score}<span style="color:var(--muted);font-weight:400">/${item.max_score ?? ''}</span></td>
-          </tr>
-        `)
+        .map((item) => {
+          const wrong = item.score < item.max_score;
+          const hasFeedback = item.feedback && item.feedback.trim();
+          const hasExplain  = item.explain_text && item.explain_text.trim();
+          const detailId = `detail-${item.question_no}`;
+          // 해설/피드백 행 (오답이거나 피드백 있을 때만)
+          const extraRow = (wrong && (hasFeedback || hasExplain)) ? `
+            <tr id="${detailId}" style="display:none;background:var(--card-bg,#f8f9fb)">
+              <td colspan="4" style="padding:10px 14px;font-size:12px;color:var(--text,#333);line-height:1.6;border-top:1px dashed var(--border,#e0e0e0)">
+                ${hasFeedback ? `<div style="margin-bottom:6px"><strong style="color:var(--primary,#1a3a6b)">채점 피드백:</strong> ${escHtml(item.feedback)}</div>` : ''}
+                ${hasExplain  ? `<div><strong style="color:var(--primary,#1a3a6b)">해설:</strong><br><span style="white-space:pre-wrap">${escHtml(item.explain_text)}</span></div>` : ''}
+              </td>
+            </tr>` : '';
+          const toggleBtn = (wrong && (hasFeedback || hasExplain))
+            ? `<button onclick="var r=document.getElementById('${detailId}');r.style.display=r.style.display==='none'?'table-row':'none'" style="font-size:10px;padding:1px 7px;border:1px solid #ccc;border-radius:4px;background:transparent;cursor:pointer;margin-left:6px">해설</button>`
+            : '';
+          return `
+            <tr>
+              <td>${item.question_no}</td>
+              <td>${escHtml(item.answer) || '-'}</td>
+              <td>${fmtAnswer(item.correct_answer)}</td>
+              <td class="${item.score > 0 ? 'score-correct' : 'score-wrong'}">${item.score}<span style="color:var(--muted);font-weight:400">/${item.max_score ?? ''}</span>${toggleBtn}</td>
+            </tr>${extraRow}`;
+        })
         .join('');
 
       document.getElementById('retry-button').addEventListener('click', () => {
