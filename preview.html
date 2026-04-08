@@ -159,22 +159,23 @@
         // renderQuestions는 exam.js의 examApp에서 가져옴
         window.examApp.renderQuestions(data.questions);
 
-        // 정답 표시 (renderQuestions 직후)
-        highlightAnswers(data.questions);
-
-        // question-container → preview-question-container로 이동
+        // question-container 내용을 preview-question-container로 복사
         const src  = document.getElementById('question-container');
         const dest = document.getElementById('preview-question-container');
-        dest.innerHTML = '';
-        dest.appendChild(src);
+        dest.innerHTML = src.innerHTML;
+        src.innerHTML = '';
+
+        // 정답 표시 (dest 기준)
+        highlightAnswers(data.questions, dest);
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } catch(err) { alert(err.message); }
     };
 
-    function highlightAnswers(questions) {
+    function highlightAnswers(questions, container) {
+      container = container || document;
       questions.forEach(q => {
-        const card = document.getElementById(`question-${q.question_no}`);
+        const card = container.querySelector(`#question-${q.question_no}`);
         if (!card) return;
 
         if (q.correct_answer) {
