@@ -195,6 +195,35 @@
             }
           });
         }
+
+        // 구조화 입력 정답 표시 (어법/어휘 체크박스+수정어)
+        if (q.type === '주관식' && q.correct_answer) {
+          let corrections = {};
+          try { corrections = JSON.parse(q.correct_answer); } catch(_) {}
+          if (typeof corrections === 'object' && !Array.isArray(corrections)) {
+            Object.entries(corrections).forEach(([num, word]) => {
+              // 체크박스 체크
+              const cb = card.querySelector(`input[type="checkbox"][data-num="${num}"]`);
+              if (cb) {
+                cb.checked = true;
+                cb.closest('label, .struct-row, li, div')?.classList?.add('checked');
+              }
+              // 수정어 입력
+              const ti = card.querySelector(`.struct-text[data-num="${num}"]`);
+              if (ti) {
+                ti.value = word;
+                ti.style.background = '#e8f5e9';
+                ti.style.borderColor = '#66bb6a';
+              }
+            });
+          }
+          // 서술형 텍스트 정답 (textarea)
+          const ta = card.querySelector('textarea');
+          if (ta && !Object.keys(corrections).length) {
+            ta.value = q.correct_answer;
+            ta.style.background = '#e8f5e9';
+          }
+        }
       });
     }
 
