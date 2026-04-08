@@ -61,6 +61,17 @@
 
       async function handleSubmit() {
         if (!currentAttemptId || !currentQuestions.length || hasSubmitted) return;
+        const unanswered = currentQuestions.filter(q => {
+          const wrapper = document.querySelector(`[data-question-no="${q.question_no}"]`);
+          if (!wrapper) return true;
+          if (q.type === '객관식') return !wrapper.querySelector('input[type="radio"]:checked');
+          const ta = wrapper.querySelector('textarea');
+          return !ta || !ta.value.trim();
+        });
+        if (unanswered.length > 0) {
+          alert(`아직 ${unanswered.length}문항을 풀지 않았습니다.\n모든 문항을 풀고 제출해주세요.`);
+          return;
+        }
         hasSubmitted = true;
         submitButton.disabled = true;
         try {
