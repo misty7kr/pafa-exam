@@ -77,9 +77,6 @@ function parseExamQuestions(resultStr) {
     if (isObj && options.length === 0) {
       options = ['①', '②', '③', '④', '⑤'];
     }
-    // 인라인 선지 감지: title 안에 ①②③④⑤ 텍스트가 포함된 경우 분리 예약
-    // (title 변수는 아래에서 생성되므로 flag만 설정)
-    const _hasInlineChoices = isObj && !choicesMatch && /①[^①②③④⑤]{5,}②/.test(trimmed);
     // SCORING 태그를 title 제거 전에 미리 추출
     const scoringTagMatch = trimmed.match(/\[SCORING\]([\s\S]*?)\[\/SCORING\]/);
     const scoring_criteria = scoringTagMatch ? scoringTagMatch[1].trim() : '';
@@ -162,16 +159,20 @@ function parseExamQuestions(resultStr) {
       // SQ: [ANS]...[/ANS] 블록 형식 (서술형 정답)
       correct_answer = ansBlockMatch[1].trim();
     }
-    // 인라인 선지 분리: title 안에 ①text ②text ... ⑤text 패턴이 있으면 추출
+    // 인라인 선지 분리: title 안에 ①text ②text ... 패턴이 있으면 제목과 분리
     let finalTitle = title;
     let finalOptions = options;
-    if (_hasInlineChoices) {
+    if (isObj && /①[^①②③④⑤]{5,}②/.test(title)) {
       const inlineMatch = title.match(/^([\s\S]*?)\s*①\s*([\s\S]+)$/);
       if (inlineMatch) {
         finalTitle = inlineMatch[1].trim();
-        const choiceBlock = '①' + inlineMatch[2];
-        const extracted = choiceBlock.split(/(?=[②③④⑤])/).map(c => c.replace(/^[①②③④⑤]\s*/, '').trim()).filter(Boolean);
-        if (extracted.length >= 2) finalOptions = extracted;
+        // options가 기본 번호(①②③④⑤)이거나 비어있을 때만 텍스트로 교체
+        const isDefaultOptions = options.length === 0 || options.every(o => /^[①②③④⑤]$/.test(o.trim()));
+        if (isDefaultOptions) {
+          const choiceBlock = '①' + inlineMatch[2];
+          const extracted = choiceBlock.split(/(?=[②③④⑤])/).map(c => c.replace(/^[①②③④⑤]\s*/, '').trim()).filter(Boolean);
+          if (extracted.length >= 2) finalOptions = extracted;
+        }
       }
     }
     questions.push({ question_no, type: isObj ? '객관식' : '주관식', qtype: qType, title: finalTitle, given, passage, summary, condition, source, options: finalOptions, score: isObj ? 2 : 4, correct_answer, sub_answers, scoring_criteria, explain_text: explainText });
