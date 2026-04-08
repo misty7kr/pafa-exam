@@ -485,11 +485,12 @@
 
   function startTimer(durationSec, onExpire) {
     const timerDisplay = document.getElementById('timer-display');
-    let remaining = durationSec;
+    const timerDisplaySub = document.getElementById('timer-display-sub');
+    const endTime = Date.now() + durationSec * 1000;
     let expired = false;
 
-    const timerDisplaySub = document.getElementById('timer-display-sub');
     function render() {
+      const remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
       const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
       const seconds = String(remaining % 60).padStart(2, '0');
       const text = `${minutes}:${seconds}`;
@@ -499,24 +500,15 @@
         timerDisplaySub.textContent = text;
         timerDisplaySub.style.color = remaining <= 600 ? '#e53e3e' : 'var(--navy)';
       }
+      if (remaining <= 0 && !expired) {
+        expired = true;
+        window.clearInterval(intervalId);
+        onExpire();
+      }
     }
 
     render();
-
-    const intervalId = window.setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        remaining = 0;
-        render();
-        if (!expired) {
-          expired = true;
-          window.clearInterval(intervalId);
-          onExpire();
-        }
-        return;
-      }
-      render();
-    }, 1000);
+    const intervalId = window.setInterval(render, 1000);
 
     return () => window.clearInterval(intervalId);
   }
