@@ -157,7 +157,7 @@
   }
 
   function isStructuredType(question) {
-    if (question.type !== '주관식') return false;
+    if (question.type !== '주관식' && !isSubjectiveOverride(question)) return false;
     if (STRUCT_QTYPES.has(question.qtype)) return true;
     if (SUMMARY_QTYPES.some(t => (question.qtype || '').includes(t))) return true;
     if (AB_QTYPES.some(t => (question.qtype || '').includes(t))) return true;
