@@ -18,8 +18,13 @@
         const checked = element.querySelector('input[type="radio"]:checked');
         answers[questionNo] = checked ? checked.value : '';
       } else {
-        const textarea = element.querySelector('textarea');
-        answers[questionNo] = textarea ? textarea.value.trim() : '';
+        const structAnswer = collectStructuredAnswer(element);
+        if (structAnswer !== null) {
+          answers[questionNo] = structAnswer;
+        } else {
+          const textarea = element.querySelector('textarea');
+          answers[questionNo] = textarea ? textarea.value.trim() : '';
+        }
       }
     });
 
@@ -40,6 +45,8 @@
         if (target) {
           target.checked = true;
         }
+      } else if (element.querySelector('.structured-input')) {
+        restoreStructuredAnswer(element, value);
       } else {
         const textarea = element.querySelector('textarea');
         if (textarea) {
@@ -122,19 +129,252 @@
   }
 
   function getSubjectivePlaceholder(question) {
-    if (question.qtype === '지칭추론') return '예) 1. they  2. it  3. the machine  4. its  5. its';
-    if (question.qtype === '어법') return '예) 2. divert  3. become  5. remained';
-    if (question.qtype === '어휘') return '예) 4. expense→cost  7. restricts→expands';
     return '답을 입력하세요.';
   }
 
   function isSubjectiveOverride(question) {
-    // 어휘 유형이지만 "고치시오" 지시문이 있으면 주관식으로 처리
     if (question.qtype === '어휘') {
       const title = question.title || question.question || '';
       if (title.includes('고치시오')) return true;
     }
     return false;
+  }
+
+  // ── 구조화 입력: 어법/어휘/지칭추론 ──
+  const CIRCLES = ['','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  const STRUCT_QTYPES = new Set(['어법', '어휘', '지칭추론']);
+  const SUMMARY_QTYPES = ['요약 빈칸', '요약빈칸', '글의 요약 빈칸'];
+  const AB_QTYPES = ['한영 영작', '한영영작'];
+
+  function detectCircledNumbers(question) {
+    const allText = [question.title, question.passage, question.given, question.condition]
+      .filter(Boolean).join(' ');
+    const found = [];
+    for (let i = 1; i <= 10; i++) {
+      if (allText.includes(CIRCLES[i])) found.push(i);
+    }
+    return found.length > 0 ? found : [1, 2, 3, 4, 5];
+  }
+
+  function isStructuredType(question) {
+    if (question.type !== '주관식') return false;
+    if (STRUCT_QTYPES.has(question.qtype)) return true;
+    if (SUMMARY_QTYPES.some(t => (question.qtype || '').includes(t))) return true;
+    if (AB_QTYPES.some(t => (question.qtype || '').includes(t))) return true;
+    return false;
+  }
+
+  function buildStructuredInput(question) {
+    const nums = detectCircledNumbers(question);
+    const qno = question.question_no;
+
+    // 요약빈칸: (A) (B) 두 칸
+    if (SUMMARY_QTYPES.some(t => (question.qtype || '').includes(t))) {
+      return `<div class="structured-input" data-input-type="summary" data-qno="${qno}">
+        <div class="structured-label">빈칸에 들어갈 말을 각각 쓰세요</div>
+        <div class="structured-row">
+          <span class="struct-num" style="min-width:30px">(A)</span>
+          <input type="text" class="struct-text" data-slot="A" placeholder="(A)에 들어갈 말">
+        </div>
+        <div class="structured-row">
+          <span class="struct-num" style="min-width:30px">(B)</span>
+          <input type="text" class="struct-text" data-slot="B" placeholder="(B)에 들어갈 말">
+        </div>
+      </div>`;
+    }
+
+    // 한영 영작: (A) (B) 두 문장
+    if (AB_QTYPES.some(t => (question.qtype || '').includes(t))) {
+      return `<div class="structured-input" data-input-type="summary" data-qno="${qno}">
+        <div class="structured-label">주어진 문장을 영작하세요</div>
+        <div class="structured-row" style="flex-direction:column;align-items:stretch;gap:4px">
+          <span class="struct-num" style="min-width:30px">(A)</span>
+          <textarea class="struct-textarea" data-slot="A" placeholder="(A) 영작" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:14px;resize:vertical;font-family:inherit"></textarea>
+        </div>
+        <div class="structured-row" style="flex-direction:column;align-items:stretch;gap:4px">
+          <span class="struct-num" style="min-width:30px">(B)</span>
+          <textarea class="struct-textarea" data-slot="B" placeholder="(B) 영작" rows="2" style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:8px 10px;font-size:14px;resize:vertical;font-family:inherit"></textarea>
+        </div>
+      </div>`;
+    }
+
+    if (question.qtype === '지칭추론') {
+      return `<div class="structured-input" data-input-type="reference" data-qno="${qno}">
+        <div class="structured-label">각 번호가 가리키는 대상을 쓰세요</div>
+        ${nums.map(n => `<div class="structured-row">
+          <span class="struct-num">${CIRCLES[n]}</span>
+          <input type="text" class="struct-text" data-num="${n}" placeholder="가리키는 대상">
+        </div>`).join('')}
+      </div>`;
+    }
+
+    // 고치시오 + EXPLAIN에 수정어가 있는 경우만 수정어 입력칸 표시
+    // (서버에서 correct_answer가 JSON이면 수정어 필요)
+    const title = question.title || '';
+    const needsCorrection = title.includes('고치시오');
+    const inputType = needsCorrection ? 'correct' : 'select';
+    const label = question.qtype === '어법'
+      ? (needsCorrection ? '틀린 번호를 고르고 바르게 고치세요' : '틀린 번호를 모두 고르세요')
+      : (needsCorrection ? '부적절한 번호를 고르고 바르게 고치세요' : '부적절한 번호를 모두 고르세요');
+
+    return `<div class="structured-input" data-input-type="${inputType}" data-qno="${qno}">
+      <div class="structured-label">${label}</div>
+      ${nums.map(n => `<div class="structured-row" data-num="${n}">
+        <label class="struct-check" onclick="event.stopPropagation()">
+          <input type="checkbox" data-num="${n}" value="${n}">
+          <span>${CIRCLES[n]}</span>
+        </label>
+        ${needsCorrection ? `<input type="text" class="struct-text" data-num="${n}" placeholder="수정어" disabled>` : ''}
+      </div>`).join('')}
+    </div>`;
+  }
+
+  function collectStructuredAnswer(element) {
+    const si = element.querySelector('.structured-input');
+    if (!si) return null;
+    const inputType = si.dataset.inputType;
+
+    if (inputType === 'summary') {
+      const parts = [];
+      // text inputs (요약빈칸)
+      si.querySelectorAll('.struct-text[data-slot]').forEach(input => {
+        const val = input.value.trim();
+        if (val) parts.push(`(${input.dataset.slot}) ${val}`);
+      });
+      // textareas (한영영작)
+      si.querySelectorAll('.struct-textarea[data-slot]').forEach(ta => {
+        const val = ta.value.trim();
+        if (val) parts.push(`(${ta.dataset.slot}) ${val}`);
+      });
+      return parts.join(' / ');
+    }
+
+    if (inputType === 'reference') {
+      const parts = [];
+      si.querySelectorAll('.struct-text').forEach(input => {
+        const val = input.value.trim();
+        if (val) parts.push(`${input.dataset.num}. ${val}`);
+      });
+      return parts.join('  ');
+    }
+    if (inputType === 'correct') {
+      const parts = [];
+      si.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+        const num = cb.dataset.num;
+        const textInput = si.querySelector(`.struct-text[data-num="${num}"]`);
+        const val = textInput ? textInput.value.trim() : '';
+        if (val) parts.push(`${num}. ${val}`);
+      });
+      return parts.join('  ');
+    }
+    // select only
+    const checked = [];
+    si.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      checked.push(CIRCLES[parseInt(cb.dataset.num)]);
+    });
+    return checked.join('');
+  }
+
+  function restoreStructuredAnswer(element, value) {
+    const si = element.querySelector('.structured-input');
+    if (!si || !value) return;
+    const inputType = si.dataset.inputType;
+
+    if (inputType === 'summary') {
+      // parse "(A) xxx / (B) yyy"
+      const mA = value.match(/\(A\)\s*([^/]*)/i);
+      const mB = value.match(/\(B\)\s*(.*)/i);
+      if (mA) {
+        const inputA = si.querySelector('.struct-text[data-slot="A"]') || si.querySelector('.struct-textarea[data-slot="A"]');
+        if (inputA) inputA.value = mA[1].trim();
+      }
+      if (mB) {
+        const inputB = si.querySelector('.struct-text[data-slot="B"]') || si.querySelector('.struct-textarea[data-slot="B"]');
+        if (inputB) inputB.value = mB[1].trim();
+      }
+      return;
+    }
+
+    if (inputType === 'reference' || inputType === 'correct') {
+      // parse "2. wrote  6. argue" format
+      const pairs = value.match(/(\d+)\.\s*([^0-9]+?)(?=\s+\d+\.|$)/g) || [];
+      pairs.forEach(pair => {
+        const m = pair.match(/^(\d+)\.\s*(.+)$/);
+        if (!m) return;
+        const num = m[1], val = m[2].trim();
+        if (inputType === 'correct') {
+          const cb = si.querySelector(`input[type="checkbox"][data-num="${num}"]`);
+          if (cb) { cb.checked = true; }
+          const ti = si.querySelector(`.struct-text[data-num="${num}"]`);
+          if (ti) { ti.disabled = false; ti.value = val; }
+        } else {
+          const ti = si.querySelector(`.struct-text[data-num="${num}"]`);
+          if (ti) ti.value = val;
+        }
+      });
+    } else {
+      // select: "①③⑤"
+      for (let i = 1; i <= 10; i++) {
+        if (value.includes(CIRCLES[i])) {
+          const cb = si.querySelector(`input[type="checkbox"][data-num="${i}"]`);
+          if (cb) cb.checked = true;
+        }
+      }
+    }
+  }
+
+  function setupStructuredListeners(container) {
+    // ── 행 클릭 → 체크박스 토글 (correct / select) ──
+    container.querySelectorAll('.structured-input[data-input-type="correct"] .structured-row, .structured-input[data-input-type="select"] .structured-row').forEach(row => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', (e) => {
+        // 활성화된 텍스트 입력칸 클릭은 무시 (입력 중)
+        if (e.target.matches('.struct-text:not(:disabled)')) return;
+        // label/checkbox 클릭은 자체 토글이므로 무시 (이중 토글 방지)
+        if (e.target.closest('.struct-check')) return;
+        const cb = row.querySelector('input[type="checkbox"]');
+        if (!cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+
+    // checkbox → enable/disable text input
+    container.querySelectorAll('.structured-input[data-input-type="correct"]').forEach(si => {
+      si.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const num = cb.dataset.num;
+          const ti = si.querySelector(`.struct-text[data-num="${num}"]`);
+          if (ti) {
+            ti.disabled = !cb.checked;
+            if (!cb.checked) ti.value = '';
+            else ti.focus();
+          }
+          saveAnswers();
+        });
+      });
+      si.querySelectorAll('.struct-text').forEach(input => {
+        input.addEventListener('input', saveAnswers);
+      });
+    });
+    // select type checkboxes
+    container.querySelectorAll('.structured-input[data-input-type="select"]').forEach(si => {
+      si.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', saveAnswers);
+      });
+    });
+    // reference type text inputs
+    container.querySelectorAll('.structured-input[data-input-type="reference"]').forEach(si => {
+      si.querySelectorAll('.struct-text').forEach(input => {
+        input.addEventListener('input', saveAnswers);
+      });
+    });
+    // summary type (요약빈칸 / 한영영작) text inputs + textareas
+    container.querySelectorAll('.structured-input[data-input-type="summary"]').forEach(si => {
+      si.querySelectorAll('.struct-text, .struct-textarea').forEach(input => {
+        input.addEventListener('input', saveAnswers);
+      });
+    });
   }
 
   function renderQuestions(questions) {
@@ -165,7 +405,9 @@
             ${
               renderType === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
-                : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${getSubjectivePlaceholder(question)}"></textarea></div>`
+                : (isStructuredType(question)
+                  ? buildStructuredInput(question)
+                  : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${getSubjectivePlaceholder(question)}"></textarea></div>`)
             }
           </section>
         `;
@@ -195,6 +437,7 @@
       field.addEventListener('input', saveAnswers);
     });
 
+    setupStructuredListeners(questionContainer);
     loadAnswers();
   }
 
@@ -284,5 +527,6 @@
     startTimer,
     saveAnswers,
     loadAnswers,
+    collectStructuredAnswer,
   };
 })();

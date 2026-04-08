@@ -65,6 +65,28 @@
           const wrapper = document.querySelector(`[data-question-no="${q.question_no}"]`);
           if (!wrapper) return true;
           if (q.type === '객관식') return !wrapper.querySelector('input[type="radio"]:checked');
+          // 구조화 입력 체크
+          const si = wrapper.querySelector('.structured-input');
+          if (si) {
+            const inputType = si.dataset.inputType;
+            if (inputType === 'summary') {
+              const inputs = si.querySelectorAll('.struct-text[data-slot], .struct-textarea[data-slot]');
+              return [...inputs].some(i => !i.value.trim());
+            }
+            if (inputType === 'reference') {
+              const inputs = si.querySelectorAll('.struct-text');
+              return [...inputs].some(i => !i.value.trim());
+            }
+            if (inputType === 'select') return !si.querySelector('input[type="checkbox"]:checked');
+            if (inputType === 'correct') {
+              const checked = si.querySelectorAll('input[type="checkbox"]:checked');
+              if (checked.length === 0) return true;
+              return [...checked].some(cb => {
+                const ti = si.querySelector(`.struct-text[data-num="${cb.dataset.num}"]`);
+                return ti && !ti.value.trim();
+              });
+            }
+          }
           const ta = wrapper.querySelector('textarea');
           return !ta || !ta.value.trim();
         });

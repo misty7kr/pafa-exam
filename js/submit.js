@@ -8,6 +8,13 @@
         if (question.type === '객관식') {
           const checked = wrapper.querySelector('input[type="radio"]:checked');
           student_answer = checked ? checked.value : '';
+        } else if (typeof window.examApp?.collectStructuredAnswer === 'function') {
+          const structAnswer = window.examApp.collectStructuredAnswer(wrapper);
+          student_answer = structAnswer !== null ? structAnswer : '';
+          if (structAnswer === null) {
+            const textarea = wrapper.querySelector('textarea');
+            student_answer = textarea ? textarea.value.trim() : '';
+          }
         } else {
           const textarea = wrapper.querySelector('textarea');
           student_answer = textarea ? textarea.value.trim() : '';

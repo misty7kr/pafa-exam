@@ -657,6 +657,95 @@ tr:last-child td { border-bottom: none; }
   align-items: start;
 }
 
+/* ── 구조화 입력 (어법/어휘/지칭추론) ── */
+.structured-input {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.structured-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.structured-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.structured-row:has(input[type="checkbox"]) {
+  cursor: pointer;
+}
+
+.structured-row:has(input[type="checkbox"]):hover {
+  border-color: var(--accent);
+  background: #f5f8ff;
+}
+
+.structured-row:has(input[type="checkbox"]:checked) {
+  border-color: var(--navy);
+  background: #eef1f8;
+}
+
+.struct-num {
+  min-width: 22px;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--navy);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.struct-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--navy);
+  flex-shrink: 0;
+}
+
+.struct-check input[type="checkbox"] {
+  accent-color: var(--navy);
+  width: 16px;
+  height: 16px;
+}
+
+.struct-text {
+  flex: 1;
+  height: 34px;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 0 10px;
+  font-size: 14px;
+  background: #fafbff;
+  color: var(--text);
+  transition: border-color 0.12s;
+}
+
+.struct-text:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--white);
+}
+
+.struct-text:disabled {
+  opacity: 0.4;
+  background: #f0f0f0;
+  pointer-events: none;
+}
+
 /* ── 반응형 ── */
 @media (max-width: 768px) {
   #question-container {
