@@ -398,8 +398,8 @@
                 </div>
               </div>
             </div>
-            ${question.given ? `<div class="given-box">${renderPassageText(question.given)}</div>` : ''}
             ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage)}</div>` : ''}
+            ${question.given ? `<div class="given-box">${renderPassageText(question.given)}</div>` : ''}
             ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
             ${
