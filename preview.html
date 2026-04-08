@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>패파리그 EXAM — 미리보기</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .preview-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #856404;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+    .answer-badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 10px;
+      margin-top: 8px;
+    }
+    .exam-select-list { display: flex; flex-direction: column; gap: 8px; }
+    .exam-select-item {
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .exam-select-item:hover { background: #f0f4ff; }
+    .key-form {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .key-form input {
+      flex: 1; padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px;
+    }
+    #back-btn {
+      font-size: 13px; padding: 6px 14px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: transparent; color: var(--muted); cursor: pointer;
+      margin-bottom: 16px;
+    }
+    /* 정답 표시 (객관식) */
+    .choice-list label.correct-choice {
+      background: #e8f5e9 !important;
+      border-color: #66bb6a !important;
+      font-weight: 700;
+    }
+    .question-card { position: relative; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div class="header-brand">
+        <div class="header-logo">P</div>
+        <div>
+          <h1 class="page-title">패파리그 <span>EXAM</span></h1>
+          <p class="page-subtitle">관리자 미리보기</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- 인증 + 시험 목록 -->
+    <section class="card" id="auth-section">
+      <h2 style="font-size:15px;font-weight:800;margin-bottom:14px;">미리보기 로그인</h2>
+      <div class="key-form">
+        <input type="password" id="admin-key-input" placeholder="관리자 키 입력" autocomplete="off">
+        <input type="text" id="academy-code-input" placeholder="학원코드 (예: PAFA)" autocomplete="off">
+        <button class="btn btn-gold" onclick="loadExamList()">시험 목록 불러오기</button>
+      </div>
+      <div id="exam-select-list" class="exam-select-list"></div>
+    </section>
+
+    <!-- 미리보기 본문 -->
+    <div id="preview-body" style="display:none">
+      <button id="back-btn" onclick="showAuthSection()">← 목록으로</button>
+      <div class="preview-banner">👁️ 미리보기 모드 — 정답이 초록색으로 표시됩니다. 학생에게는 보이지 않습니다.</div>
+      <section class="card">
+        <h2 id="preview-title" style="font-size:16px;font-weight:800;color:var(--navy);margin-bottom:16px;"></h2>
+        <div id="preview-question-container"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="parseExamQuestions.js"></script>
+  <script src="js/exam.js"></script>
+  <script>
+  (function() {
+    const ADMIN_KEY_STORAGE = 'pafa_preview_admin_key';
+    const ACADEMY_STORAGE   = 'pafa_preview_academy';
+
+    // 저장된 값 복원
+    const savedKey     = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+    const savedAcademy = localStorage.getItem(ACADEMY_STORAGE) || '';
+    if (savedKey)     document.getElementById('admin-key-input').value     = savedKey;
+    if (savedAcademy) document.getElementById('academy-code-input').value = savedAcademy;
+
+    window.loadExamList = async function() {
+      const key     = document.getElementById('admin-key-input').value.trim();
+      const academy = document.getElementById('academy-code-input').value.trim();
+      if (!key || !academy) { alert('관리자 키와 학원코드를 모두 입력하세요.'); return; }
+
+      localStorage.setItem(ADMIN_KEY_STORAGE, key);
+      localStorage.setItem(ACADEMY_STORAGE,   academy);
+
+      try {
+        const res = await fetch(`${window.API_BASE}/admin/exams?academy_code=${encodeURIComponent(academy)}`, {
+          headers: { 'x-admin-key': key }
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || '인증 실패'); }
+        const exams = await res.json();
+
+        // 중복 제거 (exam_id 기준)
+        const unique = Object.values(exams.reduce((acc, e) => { acc[e.id] = e; return acc; }, {}));
+        unique.sort((a, b) => new Date(b.registered_at) - new Date(a.registered_at));
+
+        const list = document.getElementById('exam-select-list');
+        if (!unique.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">등록된 시험이 없습니다.</p>'; return; }
+
+        list.innerHTML = unique.map(e => `
+          <div class="exam-select-item" onclick="loadPreview(${e.id})">
+            <span>${e.title || '제목 없음'}</span>
+            <span style="font-size:12px;color:var(--muted)">${(e.registered_at||'').slice(0,10)}</span>
+          </div>
+        `).join('');
+      } catch(err) { alert(err.message); }
+    };
+
+    window.loadPreview = async function(examId) {
+      const key = localStorage.getItem(ADMIN_KEY_STORAGE);
+      try {
+        const res = await fetch(`${window.API_BASE}/admin/exams/${examId}/questions`, {
+          headers: { 'x-admin-key': key }
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error || '오류'); }
+        const data = await res.json();
+
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('preview-body').style.display = '';
+        document.getElementById('preview-title').textContent = data.title || '';
+
+        // renderQuestions는 exam.js의 examApp에서 가져옴
+        window.examApp.renderQuestions(data.questions);
+
+        // 정답 표시 (renderQuestions 직후)
+        highlightAnswers(data.questions);
+
+        // question-container → preview-question-container로 이동
+        const src  = document.getElementById('question-container');
+        const dest = document.getElementById('preview-question-container');
+        dest.innerHTML = '';
+        dest.appendChild(src);
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch(err) { alert(err.message); }
+    };
+
+    function highlightAnswers(questions) {
+      questions.forEach(q => {
+        const card = document.getElementById(`question-${q.question_no}`);
+        if (!card) return;
+
+        if (q.correct_answer) {
+          const badge = document.createElement('div');
+          badge.className = 'answer-badge';
+          badge.textContent = `정답: ${q.correct_answer}`;
+          card.appendChild(badge);
+        }
+
+        // 객관식 선택지 정답 하이라이트
+        if (q.type === '객관식' && q.correct_answer) {
+          const radios = card.querySelectorAll('input[type="radio"]');
+          radios.forEach(r => {
+            if (r.value === q.correct_answer) {
+              const label = r.closest('label') || r.parentElement;
+              if (label) label.style.cssText += 'background:#e8f5e9;border-color:#66bb6a;font-weight:700;border-radius:6px;padding:2px 6px;';
+            }
+          });
+        }
+      });
+    }
+
+    window.showAuthSection = function() {
+      document.getElementById('auth-section').style.display = '';
+      document.getElementById('preview-body').style.display = 'none';
+    };
+
+    // exam.js의 renderQuestions가 question-container를 사용하므로 미리 hidden div 추가
+    const hidden = document.createElement('div');
+    hidden.id = 'question-container';
+    hidden.style.display = 'none';
+    document.body.appendChild(hidden);
+
+    // answer-sheet도 exam.js가 요구함
+    const sheet = document.createElement('div');
+    sheet.id = 'answer-sheet';
+    sheet.style.display = 'none';
+    document.body.appendChild(sheet);
+  })();
+  </script>
+</body>
+</html>
