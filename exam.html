@@ -119,11 +119,19 @@
         currentQuestions = attemptData.questions;
         hasSubmitted = false;
 
-        localStorage.setItem('pafa_answers', JSON.stringify({}));
+        // 같은 시험 재접속이면 기존 답안 유지 (다른 시험이거나 처음 시작일 때만 초기화)
+        try {
+          const prev = JSON.parse(localStorage.getItem('pafa_current_exam') || '{}');
+          if (String(prev.exam_id) !== String(exam.id)) {
+            localStorage.setItem('pafa_answers', JSON.stringify({}));
+          }
+        } catch(_) {
+          localStorage.setItem('pafa_answers', JSON.stringify({}));
+        }
         localStorage.setItem('pafa_current_exam', JSON.stringify({ exam_id: exam.id, title: exam.title }));
 
         document.getElementById('exam-body-layout').style.display = '';
-        window.examApp.renderQuestions(currentQuestions);
+        window.examApp.renderQuestions(currentQuestions); // 내부에서 loadAnswers() 호출 → 답안 복원
         submitButton.disabled = false;
 
         // started_at 기준으로 남은 시간 계산 (화면 꺼짐/재접속 후 정확한 시간 유지)
@@ -133,6 +141,7 @@
           const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
           remainingSec = Math.max(0, EXAM_DURATION - elapsed);
         }
+        // 만료 재접속: renderQuestions에서 이미 답안 복원됐으므로 그대로 제출
         if (remainingSec <= 0) { handleSubmit(true); return; }
 
         if (typeof stopTimer === 'function') stopTimer();
