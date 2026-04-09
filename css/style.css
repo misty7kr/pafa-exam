@@ -519,6 +519,8 @@ table { width: 100%; border-collapse: collapse; }
 
 .choice-item input[type="radio"] { accent-color: var(--navy); width: 16px; height: 16px; }
 
+.choice-no { font-weight: 700; margin-right: 6px; color: var(--navy); }
+
 .choice-item:has(input:checked) {
   border-color: var(--navy);
   background: #eef1f8;

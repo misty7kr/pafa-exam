@@ -122,12 +122,13 @@
       return html;
     }
 
+    const CIRCLES = ['①','②','③','④','⑤'];
     return options
       .map(
         (option, index) => `
           <label class="choice-item">
             <input type="radio" name="question-${question.question_no}" value="${String(index + 1)}">
-            <span>${option}</span>
+            <span><span class="choice-no">${CIRCLES[index] || (index + 1)}</span>${option}</span>
           </label>
         `
       )
