@@ -78,6 +78,7 @@
   function renderPassageText(text, qtype) {
     const _blankQtypes = ['빈칸추론','객관식요약빈칸','연결사빈칸','요약빈칸'];
     let result = text
+      .replace(/\[BLANK\]/g, '<span class="blank"></span>')
       .replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<span class="ref-word">$2</span>')
       .replace(/_{3,}/g, '<span class="blank"></span>');
     if (_blankQtypes.includes(qtype)) {
