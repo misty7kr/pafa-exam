@@ -128,7 +128,7 @@
         (option, index) => `
           <label class="choice-item">
             <input type="radio" name="question-${question.question_no}" value="${String(index + 1)}">
-            <span><span class="choice-no">${CIRCLES[index] || (index + 1)}</span>${option}</span>
+            <span><span class="choice-no">${CIRCLES[index] || (index + 1)}</span>${String(option).replace(/^[①②③④⑤]\s*/, '').trim()}</span>
           </label>
         `
       )
