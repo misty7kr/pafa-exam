@@ -684,18 +684,40 @@ tr:last-child td { border-bottom: none; }
   transition: border-color 0.12s, background 0.12s;
 }
 
-.structured-row:has(input[type="checkbox"]) {
+.structured-row:has(.struct-num-btn) {
   cursor: pointer;
 }
 
-.structured-row:has(input[type="checkbox"]):hover {
+.structured-row:has(.struct-num-btn):hover {
   border-color: var(--accent);
   background: #f5f8ff;
 }
 
-.structured-row:has(input[type="checkbox"]:checked) {
+.structured-row:has(.struct-num-btn.selected) {
   border-color: var(--navy);
   background: #eef1f8;
+}
+
+.struct-num-btn {
+  min-width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--navy);
+  border: 2px solid var(--border);
+  background: var(--white);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.struct-num-btn.selected {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
 }
 
 .struct-num {

@@ -226,12 +226,15 @@
 
     return `<div class="structured-input" data-input-type="${inputType}" data-qno="${qno}">
       <div class="structured-label">${label}</div>
-      ${nums.map(n => `<div class="structured-row" data-num="${n}">
-        <label class="struct-check" onclick="event.stopPropagation()">
-          <input type="checkbox" data-num="${n}" value="${n}">
-          <span>${CIRCLES[n]}</span>
-        </label>
-        ${needsCorrection ? `<input type="text" class="struct-text" data-num="${n}" placeholder="수정어" disabled>` : ''}
+      ${nums.map(n => `<div class="structured-row" data-num="${n}" onclick="
+        var row=this;var si=row.closest('.structured-input');
+        var btn=row.querySelector('.struct-num-btn');
+        var selected=btn.classList.toggle('selected');
+        ${needsCorrection ? `var inp=row.querySelector('.struct-text');inp.disabled=!selected;if(!selected)inp.value='';` : ''}
+        if(typeof saveAnswers==='function')saveAnswers();
+      " style="cursor:pointer">
+        <span class="struct-num-btn">${CIRCLES[n]}</span>
+        ${needsCorrection ? `<input type="text" class="struct-text" data-num="${n}" placeholder="수정어" disabled onclick="event.stopPropagation()">` : ''}
       </div>`).join('')}
     </div>`;
   }
@@ -266,8 +269,8 @@
     }
     if (inputType === 'correct') {
       const parts = [];
-      si.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-        const num = cb.dataset.num;
+      si.querySelectorAll('.struct-num-btn.selected').forEach(btn => {
+        const num = btn.closest('.structured-row').dataset.num;
         const textInput = si.querySelector(`.struct-text[data-num="${num}"]`);
         const val = textInput ? textInput.value.trim() : '';
         if (val) parts.push(`${num}. ${val}`);
@@ -276,8 +279,8 @@
     }
     // select only
     const checked = [];
-    si.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-      checked.push(CIRCLES[parseInt(cb.dataset.num)]);
+    si.querySelectorAll('.struct-num-btn.selected').forEach(btn => {
+      checked.push(CIRCLES[parseInt(btn.closest('.structured-row').dataset.num)]);
     });
     return checked.join('');
   }
@@ -310,8 +313,9 @@
         if (!m) return;
         const num = m[1], val = m[2].trim();
         if (inputType === 'correct') {
-          const cb = si.querySelector(`input[type="checkbox"][data-num="${num}"]`);
-          if (cb) { cb.checked = true; }
+          const row = si.querySelector(`.structured-row[data-num="${num}"]`);
+          const btn = row ? row.querySelector('.struct-num-btn') : null;
+          if (btn) btn.classList.add('selected');
           const ti = si.querySelector(`.struct-text[data-num="${num}"]`);
           if (ti) { ti.disabled = false; ti.value = val; }
         } else {
@@ -323,51 +327,19 @@
       // select: "①③⑤"
       for (let i = 1; i <= 10; i++) {
         if (value.includes(CIRCLES[i])) {
-          const cb = si.querySelector(`input[type="checkbox"][data-num="${i}"]`);
-          if (cb) cb.checked = true;
+          const row = si.querySelector(`.structured-row[data-num="${i}"]`);
+          const btn = row ? row.querySelector('.struct-num-btn') : null;
+          if (btn) btn.classList.add('selected');
         }
       }
     }
   }
 
   function setupStructuredListeners(container) {
-    // ── 행 클릭 → 체크박스 토글 (correct / select) ──
-    container.querySelectorAll('.structured-input[data-input-type="correct"] .structured-row, .structured-input[data-input-type="select"] .structured-row').forEach(row => {
-      row.style.cursor = 'pointer';
-      row.addEventListener('click', (e) => {
-        // 활성화된 텍스트 입력칸 클릭은 무시 (입력 중)
-        if (e.target.matches('.struct-text:not(:disabled)')) return;
-        // label/checkbox 클릭은 자체 토글이므로 무시 (이중 토글 방지)
-        if (e.target.closest('.struct-check')) return;
-        const cb = row.querySelector('input[type="checkbox"]');
-        if (!cb) return;
-        cb.checked = !cb.checked;
-        cb.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    });
-
-    // checkbox → enable/disable text input
+    // correct type: 수정어 입력칸 이벤트
     container.querySelectorAll('.structured-input[data-input-type="correct"]').forEach(si => {
-      si.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        cb.addEventListener('change', () => {
-          const num = cb.dataset.num;
-          const ti = si.querySelector(`.struct-text[data-num="${num}"]`);
-          if (ti) {
-            ti.disabled = !cb.checked;
-            if (!cb.checked) ti.value = '';
-            else ti.focus();
-          }
-          saveAnswers();
-        });
-      });
       si.querySelectorAll('.struct-text').forEach(input => {
         input.addEventListener('input', saveAnswers);
-      });
-    });
-    // select type checkboxes
-    container.querySelectorAll('.structured-input[data-input-type="select"]').forEach(si => {
-      si.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        cb.addEventListener('change', saveAnswers);
       });
     });
     // reference type text inputs
