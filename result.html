@@ -75,7 +75,7 @@
 
       document.getElementById('result-student').textContent = `${result.student_name || ''} 학생`;
       document.getElementById('result-title').textContent = parseExamTitle(result.exam_title) || '시험';
-      document.getElementById('result-score').textContent = `${result.total_score ?? 0} / ${result.max_score ?? 0}`;
+      document.getElementById('result-score').textContent = `${percentage} / 100`;
       document.getElementById('result-rate-label').textContent = `정답률 ${percentage}%`;
       setTimeout(() => {
         document.getElementById('result-progress').style.width = `${percentage}%`;
