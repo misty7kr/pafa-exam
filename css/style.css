@@ -729,6 +729,46 @@ tr:last-child td { border-bottom: none; }
   flex-shrink: 0;
 }
 
+/* multi_select 번호 토글 버튼 */
+.multi-select-group {
+  padding: 12px 0 4px;
+}
+
+.multi-select-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ms-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 2px solid var(--border, #dde3ef);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--navy, #1a2e5a);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.ms-btn:hover {
+  border-color: var(--accent, #3a6fd8);
+  background: #f0f4ff;
+}
+
+.ms-btn.active {
+  background: var(--navy, #1a2e5a);
+  border-color: var(--navy, #1a2e5a);
+  color: #fff;
+}
+
 .struct-check {
   display: flex;
   align-items: center;

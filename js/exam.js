@@ -14,7 +14,10 @@
       const questionNo = String(element.dataset.questionNo);
       const type = element.dataset.questionType;
 
-      if (type === '객관식') {
+      if (type === 'multi_select') {
+        const selected = [...element.querySelectorAll('.ms-btn.active')].map(b => b.dataset.val).join('');
+        answers[questionNo] = selected;
+      } else if (type === '객관식') {
         const checked = element.querySelector('input[type="radio"]:checked');
         answers[questionNo] = checked ? checked.value : '';
       } else {
@@ -40,7 +43,11 @@
       const type = element.dataset.questionType;
       const value = answers[questionNo] || '';
 
-      if (type === '객관식') {
+      if (type === 'multi_select') {
+        element.querySelectorAll('.ms-btn').forEach(b => {
+          b.classList.toggle('active', value.includes(b.dataset.val));
+        });
+      } else if (type === '객관식') {
         const target = element.querySelector(`input[type="radio"][value="${CSS.escape(value)}"]`);
         if (target) {
           target.checked = true;
@@ -87,6 +94,22 @@
       result = result.replace(/\n/g, '<br>');
     }
     return result;
+  }
+
+  // 어법/어휘 복수: 번호 체크박스 UI
+  function buildMultiSelect(question) {
+    const CIRCLES = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+    // 지문+제목에서 최대 원형숫자 감지
+    const fullText = (question.title || '') + (question.passage || '') + (question.given || '');
+    let maxIdx = 4; // 기본 ⑤까지
+    CIRCLES.forEach((c, i) => { if (fullText.includes(c)) maxIdx = i; });
+    const nums = CIRCLES.slice(0, maxIdx + 1);
+    return `<div class="multi-select-group" data-qno="${question.question_no}">
+      <div style="font-size:11px;color:var(--muted,#888);margin-bottom:6px">틀린 번호를 모두 선택하세요</div>
+      <div class="multi-select-btns">
+        ${nums.map(c => `<button type="button" class="ms-btn" data-val="${c}" onclick="toggleMultiSelect(this,'${question.question_no}')">${c}</button>`).join('')}
+      </div>
+    </div>`;
   }
 
   function buildChoices(question) {
@@ -365,7 +388,7 @@
       .map(
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
-          const renderType = (question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식';
+          const renderType = question.type === 'multi_select' ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
@@ -380,10 +403,12 @@
             </div>
             ${question.given ? `<div class="given-box">${renderPassageText(question.given, question.qtype||question.type)}</div>` : ''}
             ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage, question.qtype||question.type)}</div>` : ''}
-            ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
+            ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${
-              renderType === '객관식'
+              renderType === 'multi_select'
+                ? buildMultiSelect(question)
+                : renderType === '객관식'
                 ? `<div class="choice-list">${buildChoices(question)}</div>`
                 : (isStructuredType(question)
                   ? buildStructuredInput(question)
@@ -492,6 +517,13 @@
 
     return () => window.clearInterval(intervalId);
   }
+
+  function toggleMultiSelect(btn, qno) {
+    btn.classList.toggle('active');
+    saveAnswers();
+  }
+
+  window.toggleMultiSelect = toggleMultiSelect;
 
   window.examApp = {
     renderExamList,
