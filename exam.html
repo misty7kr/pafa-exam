@@ -125,10 +125,18 @@
         document.getElementById('exam-body-layout').style.display = '';
         window.examApp.renderQuestions(currentQuestions);
         submitButton.disabled = false;
-        localStorage.setItem('pafa_exam_started', String(Date.now()));
+
+        // started_at 기준으로 남은 시간 계산 (화면 꺼짐/재접속 후 정확한 시간 유지)
+        const EXAM_DURATION = 50 * 60;
+        let remainingSec = EXAM_DURATION;
+        if (attemptData.started_at) {
+          const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
+          remainingSec = Math.max(0, EXAM_DURATION - elapsed);
+        }
+        if (remainingSec <= 0) { handleSubmit(true); return; }
 
         if (typeof stopTimer === 'function') stopTimer();
-        stopTimer = window.examApp.startTimer(50 * 60, () => handleSubmit(true));
+        stopTimer = window.examApp.startTimer(remainingSec, () => handleSubmit(true));
       }
 
       submitButton.addEventListener('click', handleSubmit);
