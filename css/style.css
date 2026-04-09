@@ -769,6 +769,122 @@ tr:last-child td { border-bottom: none; }
   color: #fff;
 }
 
+/* OMR 답안카드 */
+.omr-card {
+  margin-bottom: 12px;
+}
+
+.omr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.omr-toggle-btn {
+  font-size: 12px;
+  padding: 3px 10px;
+  border: 1px solid var(--border, #dde3ef);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted, #888);
+  cursor: pointer;
+}
+
+.omr-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 12px;
+}
+
+@media (max-width: 600px) {
+  .omr-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.omr-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f8f9fc;
+  min-height: 38px;
+}
+
+.omr-qno {
+  min-width: 22px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted, #888);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.omr-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.omr-btn {
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--border, #dde3ef);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--navy, #1a2e5a);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  padding: 0;
+}
+
+.omr-btn:hover {
+  border-color: var(--accent, #3a6fd8);
+  background: #f0f4ff;
+}
+
+.omr-btn.active {
+  background: var(--navy, #1a2e5a);
+  border-color: var(--navy, #1a2e5a);
+  color: #fff;
+}
+
+.omr-text {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  border: 1.5px solid var(--border, #dde3ef);
+  border-radius: 5px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+}
+
+.omr-subj-hint {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted, #aaa);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.omr-subj-hint:hover {
+  background: #eef1f8;
+  color: var(--navy, #1a2e5a);
+}
+
 .struct-check {
   display: flex;
   align-items: center;

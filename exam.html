@@ -26,6 +26,14 @@
     </section>
 
     <div class="exam-body-layout" id="exam-body-layout" style="display:none">
+      <section class="card omr-card" id="omr-card" style="display:none">
+        <div class="omr-card-header">
+          <h2 style="font-size:15px;font-weight:800;color:var(--navy);margin:0">OMR 답안카드</h2>
+          <button type="button" class="omr-toggle-btn" id="omr-toggle-btn" onclick="toggleOMRCard()">접기 ▲</button>
+        </div>
+        <div class="omr-grid" id="omr-grid"></div>
+      </section>
+
       <section class="card question-main" id="question-section">
         <h2 style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:16px;">문항</h2>
         <div id="question-container"></div>
@@ -64,6 +72,7 @@
         const unanswered = currentQuestions.filter(q => {
           const wrapper = document.querySelector(`[data-question-no="${q.question_no}"]`);
           if (!wrapper) return true;
+          if (q.type === 'multi_select') return !wrapper.querySelector('.ms-btn.active');
           if (q.type === '객관식') return !wrapper.querySelector('input[type="radio"]:checked');
           // 구조화 입력 체크
           const si = wrapper.querySelector('.structured-input');

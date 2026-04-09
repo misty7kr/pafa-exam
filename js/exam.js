@@ -33,6 +33,7 @@
 
     localStorage.setItem('pafa_answers', JSON.stringify(answers));
     updateAnswerSheet();
+    updateOMR();
   }
 
   function loadAnswers() {
@@ -63,6 +64,7 @@
     });
 
     updateAnswerSheet();
+    updateOMR();
   }
 
   function updateAnswerSheet() {
@@ -443,6 +445,7 @@
     });
 
     setupStructuredListeners(questionContainer);
+    renderOMR(questions);
     loadAnswers();
   }
 
@@ -517,6 +520,122 @@
 
     return () => window.clearInterval(intervalId);
   }
+
+  const ALL_CIRCLES_OMR = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+  function renderOMR(questions) {
+    const omrCard = document.getElementById('omr-card');
+    const omrGrid = document.getElementById('omr-grid');
+    if (!omrCard || !omrGrid) return;
+    omrCard.style.display = '';
+
+    const OBJ_CIRCLES = ['①','②','③','④','⑤'];
+
+    omrGrid.innerHTML = questions.map(q => {
+      const qno = q.question_no;
+      const forceSubj = isSubjectiveOverride(q);
+      const type = q.type === 'multi_select' ? 'multi_select'
+        : ((q.type === '객관식' && !forceSubj) ? '객관식' : '주관식');
+
+      if (type === '객관식') {
+        return `<div class="omr-row" data-omr-qno="${qno}" data-omr-type="객관식">
+          <span class="omr-qno">${qno}</span>
+          <div class="omr-choices">
+            ${OBJ_CIRCLES.map((c, i) => `<button type="button" class="omr-btn" data-val="${i+1}" onclick="omrSelect(this,'${qno}','${i+1}')">${c}</button>`).join('')}
+          </div>
+        </div>`;
+      }
+
+      if (type === 'multi_select') {
+        const fullText = (q.title||'')+(q.passage||'')+(q.given||'');
+        let maxIdx = 4;
+        ALL_CIRCLES_OMR.forEach((c, i) => { if (fullText.includes(c)) maxIdx = i; });
+        const circles = ALL_CIRCLES_OMR.slice(0, maxIdx + 1);
+        return `<div class="omr-row" data-omr-qno="${qno}" data-omr-type="multi_select">
+          <span class="omr-qno">${qno}</span>
+          <div class="omr-choices">
+            ${circles.map(c => `<button type="button" class="omr-btn" data-val="${c}" onclick="omrToggleMulti(this,'${qno}','${c}')">${c}</button>`).join('')}
+          </div>
+        </div>`;
+      }
+
+      // 주관식: 구조화 입력은 읽기전용 힌트, 단순 textarea는 직접 입력
+      const structured = isStructuredType(q);
+      return `<div class="omr-row" data-omr-qno="${qno}" data-omr-type="주관식">
+        <span class="omr-qno">${qno}</span>
+        ${structured
+          ? `<span class="omr-subj-hint" onclick="document.getElementById('question-${qno}').scrollIntoView({behavior:'smooth',block:'start'})">—</span>`
+          : `<input type="text" class="omr-text" placeholder="답 입력" oninput="omrTextInput(this,'${qno}')">`
+        }
+      </div>`;
+    }).join('');
+  }
+
+  function updateOMR() {
+    const answers = getStoredAnswers();
+    document.querySelectorAll('.omr-row').forEach(row => {
+      const qno = row.dataset.omrQno;
+      const type = row.dataset.omrType;
+      const val = answers[qno] || '';
+
+      if (type === '객관식') {
+        row.querySelectorAll('.omr-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.val === val);
+        });
+      } else if (type === 'multi_select') {
+        row.querySelectorAll('.omr-btn').forEach(b => {
+          b.classList.toggle('active', val.includes(b.dataset.val));
+        });
+      } else {
+        const inp = row.querySelector('.omr-text');
+        if (inp && inp !== document.activeElement) inp.value = val;
+        const hint = row.querySelector('.omr-subj-hint');
+        if (hint) hint.textContent = val || '—';
+      }
+    });
+  }
+
+  function omrSelect(btn, qno, val) {
+    // OMR → 라디오 동기화
+    const radio = document.querySelector(`input[type="radio"][name="question-${qno}"][value="${val}"]`);
+    if (radio) { radio.checked = true; }
+    saveAnswers();
+  }
+
+  function omrToggleMulti(btn, qno, val) {
+    btn.classList.toggle('active');
+    // OMR → ms-btn 동기화
+    const questionEl = document.querySelector(`[data-question-no="${qno}"]`);
+    if (questionEl) {
+      const msBtn = [...questionEl.querySelectorAll('.ms-btn')].find(b => b.dataset.val === val);
+      if (msBtn) msBtn.classList.toggle('active', btn.classList.contains('active'));
+    }
+    saveAnswers();
+  }
+
+  function omrTextInput(input, qno) {
+    // OMR → textarea 동기화
+    const questionEl = document.querySelector(`[data-question-no="${qno}"]`);
+    if (questionEl) {
+      const ta = questionEl.querySelector('textarea');
+      if (ta) ta.value = input.value;
+    }
+    saveAnswers();
+  }
+
+  function toggleOMRCard() {
+    const grid = document.getElementById('omr-grid');
+    const btn = document.getElementById('omr-toggle-btn');
+    if (!grid || !btn) return;
+    const collapsed = grid.style.display === 'none';
+    grid.style.display = collapsed ? '' : 'none';
+    btn.textContent = collapsed ? '접기 ▲' : '펼치기 ▼';
+  }
+
+  window.omrSelect = omrSelect;
+  window.omrToggleMulti = omrToggleMulti;
+  window.omrTextInput = omrTextInput;
+  window.toggleOMRCard = toggleOMRCard;
 
   function toggleMultiSelect(btn, qno) {
     btn.classList.toggle('active');
