@@ -75,11 +75,17 @@
     return text;
   }
 
-  function renderPassageText(text) {
-    return text
+  function renderPassageText(text, qtype) {
+    const _blankQtypes = ['빈칸추론','객관식요약빈칸','연결사빈칸','요약빈칸'];
+    let result = text
       .replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<span class="ref-word">$2</span>')
-      .replace(/_{3,}/g, '<span class="blank"></span>')
-      .replace(/\n/g, '<br>');
+      .replace(/_{3,}/g, '<span class="blank"></span>');
+    if (_blankQtypes.includes(qtype)) {
+      result = result.replace(/\n{2,}/g, '\n').replace(/\n/g, '<br>');
+    } else {
+      result = result.replace(/\n/g, '<br>');
+    }
+    return result;
   }
 
   function buildChoices(question) {
@@ -398,8 +404,8 @@
                 </div>
               </div>
             </div>
-            ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage)}</div>` : ''}
-            ${question.given ? `<div class="given-box">${renderPassageText(question.given)}</div>` : ''}
+            ${question.given ? `<div class="given-box">${renderPassageText(question.given, question.qtype||question.type)}</div>` : ''}
+            ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage, question.qtype||question.type)}</div>` : ''}
             ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
             ${
