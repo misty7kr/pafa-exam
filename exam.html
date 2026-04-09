@@ -135,7 +135,7 @@
         submitButton.disabled = false;
 
         // started_at 기준으로 남은 시간 계산 (화면 꺼짐/재접속 후 정확한 시간 유지)
-        const EXAM_DURATION = 50 * 60;
+        const EXAM_DURATION = 60 * 60;
         let remainingSec = EXAM_DURATION;
         if (attemptData.started_at) {
           const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
