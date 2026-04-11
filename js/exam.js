@@ -18,8 +18,13 @@
         const selected = [...element.querySelectorAll('.ms-btn.active')].map(b => b.dataset.val).join('');
         answers[questionNo] = selected;
       } else if (type === '객관식') {
-        const checked = element.querySelector('input[type="radio"]:checked');
-        answers[questionNo] = checked ? checked.value : '';
+        const activeBtn = element.querySelector('.single-select-group .ms-btn.active');
+        if (activeBtn) {
+          answers[questionNo] = activeBtn.dataset.val;
+        } else {
+          const checked = element.querySelector('input[type="radio"]:checked');
+          answers[questionNo] = checked ? checked.value : '';
+        }
       } else {
         const structAnswer = collectStructuredAnswer(element);
         if (structAnswer !== null) {
@@ -49,9 +54,12 @@
           b.classList.toggle('active', value.includes(b.dataset.val));
         });
       } else if (type === '객관식') {
-        const target = element.querySelector(`input[type="radio"][value="${CSS.escape(value)}"]`);
-        if (target) {
-          target.checked = true;
+        const group = element.querySelector('.single-select-group');
+        if (group) {
+          group.querySelectorAll('.ms-btn').forEach(b => b.classList.toggle('active', b.dataset.val === value));
+        } else {
+          const target = element.querySelector(`input[type="radio"][value="${CSS.escape(value)}"]`);
+          if (target) target.checked = true;
         }
       } else if (element.querySelector('.structured-input')) {
         restoreStructuredAnswer(element, value);
@@ -98,19 +106,17 @@
     return result;
   }
 
-  // 어법/어휘 단일선택: 지문 속 ①~⑩ 번호를 라디오 버튼으로 렌더링
+  // 어법/어휘 단일선택: 지문 속 ①~⑩ 번호를 가로 버튼으로 렌더링
   function buildNumberedSingleSelect(question) {
     const CIRCLES = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
     const fullText = (question.title || '') + (question.passage || '') + (question.given || '');
-    let maxIdx = 4; // 기본 ⑤까지
+    let maxIdx = 4;
     CIRCLES.forEach((c, i) => { if (fullText.includes(c)) maxIdx = i; });
     const nums = CIRCLES.slice(0, maxIdx + 1);
-    return nums.map((c, i) => `
-      <label class="choice-item">
-        <input type="radio" name="question-${question.question_no}" value="${String(i + 1)}">
-        <span><span class="choice-no">${c}</span></span>
-      </label>
-    `).join('');
+    const qno = question.question_no;
+    return `<div class="single-select-group" data-qno="${qno}">
+      ${nums.map((c, i) => `<button type="button" class="ms-btn" data-val="${String(i + 1)}" onclick="singleSelect(this,'${qno}')">${c}</button>`).join('')}
+    </div>`;
   }
 
   // 어법/어휘 복수: 번호 체크박스 UI
@@ -664,11 +670,24 @@
     btn.textContent = collapsed ? '접기 ▲' : '펼치기 ▼';
   }
 
+  window.singleSelect = singleSelect;
   window.omrSelect = omrSelect;
   window.omrToggleMulti = omrToggleMulti;
   window.omrTextInput = omrTextInput;
   window.omrClear = omrClear;
   window.toggleOMRCard = toggleOMRCard;
+
+  function singleSelect(btn, qno) {
+    const group = btn.closest('.single-select-group');
+    if (group) group.querySelectorAll('.ms-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    // OMR 동기화
+    const omrRow = document.querySelector(`.omr-row[data-omr-qno="${qno}"]`);
+    if (omrRow) {
+      omrRow.querySelectorAll('.omr-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+    }
+    saveAnswers();
+  }
 
   function toggleMultiSelect(btn, qno) {
     btn.classList.toggle('active');
