@@ -181,10 +181,6 @@
   }
 
   function isSubjectiveOverride(question) {
-    if (question.qtype === '어휘') {
-      const title = question.title || question.question || '';
-      if (title.includes('고치시오')) return true;
-    }
     return false;
   }
 
