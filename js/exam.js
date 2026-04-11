@@ -98,6 +98,21 @@
     return result;
   }
 
+  // 어법/어휘 단일선택: 지문 속 ①~⑩ 번호를 라디오 버튼으로 렌더링
+  function buildNumberedSingleSelect(question) {
+    const CIRCLES = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+    const fullText = (question.title || '') + (question.passage || '') + (question.given || '');
+    let maxIdx = 4; // 기본 ⑤까지
+    CIRCLES.forEach((c, i) => { if (fullText.includes(c)) maxIdx = i; });
+    const nums = CIRCLES.slice(0, maxIdx + 1);
+    return nums.map((c, i) => `
+      <label class="choice-item">
+        <input type="radio" name="question-${question.question_no}" value="${String(i + 1)}">
+        <span><span class="choice-no">${c}</span></span>
+      </label>
+    `).join('');
+  }
+
   // 어법/어휘 복수: 번호 체크박스 UI
   function buildMultiSelect(question) {
     const CIRCLES = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
@@ -390,7 +405,8 @@
       .map(
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
-          const renderType = question.type === 'multi_select' ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
+          const forceObj = !forceSubjective && ['어법', '어휘'].includes(question.qtype);
+          const renderType = question.type === 'multi_select' ? 'multi_select' : (((question.type === '객관식' || forceObj) && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
@@ -411,7 +427,7 @@
               renderType === 'multi_select'
                 ? buildMultiSelect(question)
                 : renderType === '객관식'
-                ? `<div class="choice-list">${buildChoices(question)}</div>`
+                ? `<div class="choice-list">${['어법', '어휘'].includes(question.qtype) ? buildNumberedSingleSelect(question) : buildChoices(question)}</div>`
                 : (isStructuredType(question)
                   ? buildStructuredInput(question)
                   : `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="${getSubjectivePlaceholder(question)}"></textarea></div>`)
@@ -529,19 +545,22 @@
     if (!omrCard || !omrGrid) return;
     omrCard.style.display = '';
 
-    const OBJ_CIRCLES = ['①','②','③','④','⑤'];
+    const OBJ_CIRCLES_5  = ['①','②','③','④','⑤'];
+    const OBJ_CIRCLES_10 = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
 
     omrGrid.innerHTML = questions.map(q => {
       const qno = q.question_no;
       const forceSubj = isSubjectiveOverride(q);
+      const forceObjOMR = !forceSubj && ['어법', '어휘'].includes(q.qtype);
       const type = q.type === 'multi_select' ? 'multi_select'
-        : ((q.type === '객관식' && !forceSubj) ? '객관식' : '주관식');
+        : (((q.type === '객관식' || forceObjOMR) && !forceSubj) ? '객관식' : '주관식');
 
       if (type === '객관식') {
+        const circles = ['어법', '어휘'].includes(q.qtype) ? OBJ_CIRCLES_10 : OBJ_CIRCLES_5;
         return `<div class="omr-row" data-omr-qno="${qno}" data-omr-type="객관식">
           <span class="omr-qno">${qno}</span>
           <div class="omr-choices">
-            ${OBJ_CIRCLES.map((c, i) => `<button type="button" class="omr-btn" data-val="${i+1}" onclick="omrSelect(this,'${qno}','${i+1}')">${c}</button>`).join('')}
+            ${circles.map((c, i) => `<button type="button" class="omr-btn" data-val="${i+1}" onclick="omrSelect(this,'${qno}','${i+1}')">${c}</button>`).join('')}
           </div>
         </div>`;
       }
@@ -565,7 +584,8 @@
         <span class="omr-qno">${qno}</span>
         ${structured
           ? `<span class="omr-subj-hint" onclick="document.getElementById('question-${qno}').scrollIntoView({behavior:'smooth',block:'start'})">—</span>`
-          : `<input type="text" class="omr-text" placeholder="답 입력" oninput="omrTextInput(this,'${qno}')">`
+          : `<textarea class="omr-text" placeholder="답 입력" oninput="omrTextInput(this,'${qno}')"></textarea>
+             <button type="button" class="omr-clear-btn" onclick="omrClear('${qno}')" title="지우기">×</button>`
         }
       </div>`;
     }).join('');
@@ -623,6 +643,22 @@
     saveAnswers();
   }
 
+  function omrClear(qno) {
+    // OMR 텍스트 지우기
+    const row = document.querySelector(`.omr-row[data-omr-qno="${qno}"]`);
+    if (row) {
+      const inp = row.querySelector('.omr-text');
+      if (inp) inp.value = '';
+    }
+    // 본문 textarea 동기화
+    const questionEl = document.querySelector(`[data-question-no="${qno}"]`);
+    if (questionEl) {
+      const ta = questionEl.querySelector('textarea');
+      if (ta) ta.value = '';
+    }
+    saveAnswers();
+  }
+
   function toggleOMRCard() {
     const grid = document.getElementById('omr-grid');
     const btn = document.getElementById('omr-toggle-btn');
@@ -635,6 +671,7 @@
   window.omrSelect = omrSelect;
   window.omrToggleMulti = omrToggleMulti;
   window.omrTextInput = omrTextInput;
+  window.omrClear = omrClear;
   window.toggleOMRCard = toggleOMRCard;
 
   function toggleMultiSelect(btn, qno) {

@@ -829,13 +829,13 @@ tr:last-child td { border-bottom: none; }
 }
 
 .omr-btn {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border: 1.5px solid var(--border, #dde3ef);
   border-radius: 50%;
   background: #fff;
   color: var(--navy, #1a2e5a);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -856,16 +856,57 @@ tr:last-child td { border-bottom: none; }
   color: #fff;
 }
 
+[data-omr-type="주관식"] {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+[data-omr-type="주관식"] .omr-text {
+  flex: none;
+  width: 100%;
+  margin-top: 6px;
+}
+
 .omr-text {
-  flex: 1;
-  min-width: 0;
-  height: 26px;
+  width: 100%;
+  min-height: 80px;
   border: 1.5px solid var(--border, #dde3ef);
   border-radius: 5px;
-  padding: 0 6px;
-  font-size: 13px;
+  padding: 8px;
+  font-size: 14px;
   font-family: inherit;
   background: #fff;
+  resize: none;
+  line-height: 1.6;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+}
+
+
+.omr-clear-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: var(--muted, #aaa);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.omr-clear-btn:hover {
+  background: #fee2e2;
+  color: #e53e3e;
 }
 
 .omr-subj-hint {
@@ -954,7 +995,7 @@ tr:last-child td { border-bottom: none; }
   .card { padding: 18px 16px; }
 
   .exam-body-layout {
-    flex-direction: column-reverse;
+    flex-direction: column;
   }
 
   .answer-sidebar {
