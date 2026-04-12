@@ -192,7 +192,7 @@
 
   // ── 구조화 입력: 어법/어휘/지칭추론 ──
   const CIRCLES = ['','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-  const STRUCT_QTYPES = new Set(['어법', '어휘', '지칭추론']);
+  const STRUCT_QTYPES = new Set(['어법', '어휘']);
   const SUMMARY_QTYPES = ['요약 빈칸', '요약빈칸', '글의 요약 빈칸'];
   const AB_QTYPES = ['한영 영작', '한영영작'];
 
@@ -408,7 +408,8 @@
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
           const MULTI_QTYPES = new Set(['어법', '어휘', '어법복수']);
-          const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
+          const forceObj = question.qtype === '지칭추론';
+          const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : (((question.type === '객관식' || forceObj) && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
