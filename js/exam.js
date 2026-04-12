@@ -408,8 +408,7 @@
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
           const MULTI_QTYPES = new Set(['어법', '어휘', '어법복수']);
-          const forceObj = question.qtype === '지칭추론';
-          const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : (((question.type === '객관식' || forceObj) && !forceSubjective) ? '객관식' : '주관식');
+          const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
