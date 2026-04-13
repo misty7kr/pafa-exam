@@ -5,7 +5,10 @@
       let student_answer = '';
 
       if (wrapper) {
-        if (question.type === '객관식') {
+        const renderType = wrapper.dataset.questionType;
+        if (renderType === 'multi_select') {
+          student_answer = [...wrapper.querySelectorAll('.ms-btn.active')].map((button) => button.dataset.val).join('');
+        } else if (question.type === '객관식') {
           const checked = wrapper.querySelector('input[type="radio"]:checked');
           student_answer = checked ? checked.value : '';
         } else if (typeof window.examApp?.collectStructuredAnswer === 'function') {
