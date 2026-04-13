@@ -72,7 +72,8 @@
         const unanswered = currentQuestions.filter(q => {
           const wrapper = document.querySelector(`[data-question-no="${q.question_no}"]`);
           if (!wrapper) return true;
-          if (q.type === 'multi_select') return !wrapper.querySelector('.ms-btn.active');
+          const renderType = wrapper.dataset.questionType;
+          if (renderType === 'multi_select') return !wrapper.querySelector('.ms-btn.active');
           if (q.type === '객관식') return !wrapper.querySelector('input[type="radio"]:checked');
           // 구조화 입력 체크
           const si = wrapper.querySelector('.structured-input');
