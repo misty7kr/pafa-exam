@@ -7,7 +7,11 @@
       if (wrapper) {
         const renderType = wrapper.dataset.questionType;
         if (renderType === 'multi_select') {
-          student_answer = [...wrapper.querySelectorAll('.ms-btn.active')].map((button) => button.dataset.val).join('');
+          const selected = [...wrapper.querySelectorAll('.ms-btn.active')].map((button) => button.dataset.val);
+          const circleToNum = { '①':'1', '②':'2', '③':'3', '④':'4', '⑤':'5', '⑥':'6', '⑦':'7', '⑧':'8', '⑨':'9', '⑩':'10' };
+          student_answer = question.type === '객관식'
+            ? selected.map((value) => circleToNum[value] || value).join(' ')
+            : selected.join('');
         } else if (question.type === '객관식') {
           const checked = wrapper.querySelector('input[type="radio"]:checked');
           student_answer = checked ? checked.value : '';
