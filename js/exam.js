@@ -193,6 +193,7 @@
   // ── 구조화 입력: 어법/어휘/지칭추론 ──
   const CIRCLES = ['','①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
   const STRUCT_QTYPES = new Set(['어법', '어휘']);
+  const MULTI_QTYPES = new Set(['어법', '어휘', '어법복수']);
   const SUMMARY_QTYPES = ['요약 빈칸', '요약빈칸', '글의 요약 빈칸'];
   const AB_QTYPES = ['한영 영작', '한영영작'];
 
@@ -407,7 +408,6 @@
       .map(
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
-          const MULTI_QTYPES = new Set(['어법', '어휘', '어법복수']);
           const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
@@ -554,7 +554,7 @@
       const qno = q.question_no;
       const forceSubj = isSubjectiveOverride(q);
       const forceObjOMR = !forceSubj && ['어법', '어휘'].includes(q.qtype);
-      const type = q.type === 'multi_select' ? 'multi_select'
+      const type = (q.type === 'multi_select' || MULTI_QTYPES.has(q.qtype)) ? 'multi_select'
         : (((q.type === '객관식' || forceObjOMR) && !forceSubj) ? '객관식' : '주관식');
 
       if (type === '객관식') {
