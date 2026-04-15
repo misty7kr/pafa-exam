@@ -490,7 +490,7 @@
       return d.toLocaleString('ko-KR', {
         timeZone: 'Asia/Seoul',
         year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit'
+        hour: '2-digit', minute: '2-digit', hour12: false
       });
     } catch (_) { return ''; }
   }
@@ -511,7 +511,7 @@
             <button type="button" class="exam-card" data-exam-id="${exam.id}" data-attempt-id="${exam.completed_attempt_id || ''}">
               <h3>${parseExamTitle(exam.title)}</h3>
               <p class="muted">${exam.completed_attempt_id ? '응시 완료 — 결과 보기' : '응시 가능'}</p>
-              ${regTime ? `<p class="muted" style="font-size:0.75em;margin-top:4px;opacity:0.7">${regTime} 등록</p>` : ''}
+              ${regTime ? `<p class="muted" style="font-size:0.75em;margin-top:4px;opacity:0.7">${regTime}</p>` : ''}
             </button>
           `;
         }
