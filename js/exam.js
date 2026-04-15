@@ -480,6 +480,18 @@
       .trim();
   }
 
+  function toKST(utcStr) {
+    if (!utcStr) return '';
+    try {
+      const d = new Date(String(utcStr).replace(' ', 'T') + 'Z');
+      return d.toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (_) { return ''; }
+  }
+
   function renderExamList(exams, onSelect) {
     const container = document.getElementById('exam-list');
 
@@ -490,12 +502,16 @@
 
     container.innerHTML = exams
       .map(
-        (exam) => `
-          <button type="button" class="exam-card" data-exam-id="${exam.id}" data-attempt-id="${exam.completed_attempt_id || ''}">
-            <h3>${parseExamTitle(exam.title)}</h3>
-            <p class="muted">${exam.completed_attempt_id ? '응시 완료 — 결과 보기' : '응시 가능'}</p>
-          </button>
-        `
+        (exam) => {
+          const regTime = toKST(exam.registered_at);
+          return `
+            <button type="button" class="exam-card" data-exam-id="${exam.id}" data-attempt-id="${exam.completed_attempt_id || ''}">
+              <h3>${parseExamTitle(exam.title)}</h3>
+              <p class="muted">${exam.completed_attempt_id ? '응시 완료 — 결과 보기' : '응시 가능'}</p>
+              ${regTime ? `<p class="muted" style="font-size:0.75em;margin-top:4px;opacity:0.7">${regTime} 등록</p>` : ''}
+            </button>
+          `;
+        }
       )
       .join('');
 
