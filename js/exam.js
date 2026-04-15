@@ -483,7 +483,10 @@
   function toKST(utcStr) {
     if (!utcStr) return '';
     try {
-      const d = new Date(String(utcStr).replace(' ', 'T') + 'Z');
+      const s = String(utcStr);
+      const iso = /[Zz]$|[+-]\d{2}:\d{2}$/.test(s) ? s : s.replace(' ', 'T') + 'Z';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
       return d.toLocaleString('ko-KR', {
         timeZone: 'Asia/Seoul',
         year: 'numeric', month: '2-digit', day: '2-digit',
