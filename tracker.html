@@ -1,62 +1,146 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>패파리그 — 1등급 측정기</title>
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .trk-banner{background:linear-gradient(135deg,var(--navy) 0%,var(--navy3) 100%);color:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px}
-    .trk-dday{font-size:13px;color:var(--gold3);font-weight:700}
-    .trk-msg{font-size:14px;margin-top:6px;line-height:1.5}
-    .trk-overall{display:flex;align-items:center;gap:10px;margin-top:10px}
-    .trk-overall .bar{flex:1;height:10px;background:rgba(255,255,255,.18);border-radius:5px;overflow:hidden}
-    .trk-overall .bar>div{height:100%;background:linear-gradient(90deg,var(--gold) 0%,var(--gold2) 100%)}
-    .psg-card{border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--white);cursor:pointer;transition:.15s}
-    .psg-card:hover{border-color:var(--gold)}
-    .psg-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .psg-no{font-weight:800;color:var(--navy)}
-    .psg-meta{font-size:11px;color:var(--muted);margin-top:3px}
-    .psg-pct{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px}
-    .psg-form{margin-top:14px;border-top:1px dashed var(--border);padding-top:14px;display:none}
-    .psg-form.open{display:block}
-    .sl-row{display:flex;align-items:center;gap:10px;margin:8px 0}
-    .sl-row label{width:48px;font-size:13px;color:var(--text);font-weight:600}
-    .sl-row input[type=range]{flex:1}
-    .sl-row .val{width:40px;text-align:right;font-size:12px;color:var(--muted)}
-    .wk-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-    .wk-chip{display:flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:8px;padding:3px 6px;font-size:11px;background:var(--bg)}
-    .wk-chip button{width:20px;height:20px;border:none;border-radius:5px;background:var(--navy);color:#fff;font-size:13px;cursor:pointer;line-height:1}
-    .wk-chip .c{min-width:14px;text-align:center;font-weight:700}
-    .wk-chip.has{border-color:var(--danger)}
-    .trk-check{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px}
-    .trk-actions{display:flex;gap:8px;margin-top:12px}
-    .subtitle-sm{font-size:11px;color:var(--muted);margin:10px 0 4px}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1등급 측정기</title>
+<style>
+  /* POGEGI STUDIO 네온 테마 (검정 + 네온 그린 #00ff88) — 목업 v3 기준 */
+  :root{
+    --bg:#0a0a0a; --surface:#141414; --elevated:#1a1a1a; --border:#2a2a2a; --border-h:#3a3a3a;
+    --txt:#f5f5f5; --sub:#9a9a9a; --muted:#6a6a6a;
+    --accent:#00ff88; --accent-h:#00cc6a; --accent-dim:rgba(0,255,136,.18);
+    --danger:#ff4444; --danger-dim:rgba(255,68,68,.14); --warn:#ffaa00; --success:#00ff88;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:#000; color:var(--txt); font-family:'Pretendard','Malgun Gothic',sans-serif; font-size:14px; line-height:1.5; padding:18px 0 40px; display:flex; justify-content:center;}
+  .phone{width:100%; max-width:420px; background:var(--bg); border:1px solid var(--border); border-radius:24px; overflow:hidden; box-shadow:0 0 60px rgba(0,255,136,.1);}
+
+  .hd{padding:18px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;}
+  .hd .brand{display:flex; align-items:center; gap:7px; font-weight:800; font-size:17px; color:var(--accent); text-shadow:0 0 14px var(--accent-dim);}
+  .hd .exam{color:var(--sub); font-size:12.5px; margin-top:4px;}
+  .hd .logout{font-size:11px; color:var(--muted); border:1px solid var(--border); background:transparent; border-radius:6px; padding:5px 9px; cursor:pointer;}
+
+  .hero{padding:18px; display:flex; align-items:center; gap:16px; background:var(--elevated); border-bottom:1px solid var(--border);}
+  .donut-col{display:flex; flex-direction:column; align-items:center; gap:7px; flex-shrink:0;}
+  .donut-cap{font-size:11px; color:var(--muted); font-weight:600;}
+  .donut{position:relative; width:84px; height:84px; filter:drop-shadow(0 0 8px var(--accent-dim));}
+  .donut svg{transform:rotate(-90deg);}
+  .donut .ctr{position:absolute; inset:0; display:grid; place-items:center;}
+  .donut .ctr b{font-size:22px; font-weight:800; color:var(--accent); line-height:1; text-shadow:0 0 12px var(--accent-dim);}
+  .hero .info{flex:1;}
+  .dday{display:inline-block; padding:4px 11px; border-radius:20px; background:var(--danger-dim); color:var(--danger); font-weight:800; font-size:12px;}
+  .hero .msg{margin-top:8px; font-size:13px; color:var(--sub);}
+  .hero .msg b{color:var(--accent);}
+
+  .sec-lbl{padding:16px 18px 8px; font-size:12px; color:var(--muted); font-weight:700;}
+  .plist{padding:0 14px;}
+  .pcard{background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:10px; overflow:hidden;}
+  .pcard.open{border-color:var(--accent); box-shadow:0 0 18px var(--accent-dim);}
+  .pcard .top{padding:13px 14px; display:flex; align-items:center; gap:11px; cursor:pointer;}
+  .pcard .num{width:27px; height:27px; border-radius:8px; background:var(--elevated); display:grid; place-items:center; font-weight:800; font-size:12px; color:var(--muted); flex-shrink:0;}
+  .pcard.open .num{background:var(--accent); color:#04210f;}
+  .pcard .ptitle{flex:1; min-width:0;}
+  .pcard .ptitle .txt{font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .pcard .ptitle .src{font-size:12px; color:var(--muted); margin-top:2px;}
+  .pcard .pct{font-weight:800; font-size:14px; flex-shrink:0;}
+  .tagm{display:inline-block; padding:1px 7px; border-radius:6px; font-size:10.5px; font-weight:700; background:var(--accent-dim); color:var(--accent); margin-right:4px;}
+
+  .pbody{padding:6px 16px 18px; border-top:1px solid var(--border); background:var(--bg); display:none;}
+  .pcard.open .pbody{display:block;}
+
+  .slider{margin:14px 0;}
+  .slider .row{display:flex; justify-content:space-between; margin-bottom:6px; font-size:13px;}
+  .slider .row b{font-weight:700;}
+  .slider .row .v{font-weight:800; color:var(--accent); text-shadow:0 0 10px var(--accent-dim);}
+  input[type=range]{-webkit-appearance:none; width:100%; height:7px; border-radius:5px; background:#262b30; outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--accent); border:3px solid var(--bg); cursor:pointer; box-shadow:0 0 0 1px var(--accent), 0 0 12px var(--accent-dim);}
+
+  .block-lbl{margin:20px 0 9px; font-size:13px; font-weight:800;}
+  .block-lbl .hint{display:block; font-size:11px; color:var(--muted); font-weight:500; margin-top:2px;}
+  .sub-lbl{font-size:11.5px; color:var(--muted); font-weight:700; margin:12px 0 7px;}
+
+  .cgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:7px;}
+  .counter{display:flex; flex-direction:column; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:8px 4px;}
+  .counter.hit{border-color:var(--danger); background:var(--danger-dim);}
+  .counter .nm{font-size:10.5px; color:var(--sub); margin-bottom:5px; text-align:center; line-height:1.2; min-height:25px; display:flex; align-items:center; font-weight:600;}
+  .counter .ctl{display:flex; align-items:center; gap:7px;}
+  .counter .ctl button{width:21px; height:21px; border-radius:50%; border:none; cursor:pointer; font-size:13px; font-weight:800; line-height:1;}
+  .counter .minus{background:#2b3036; color:var(--sub);}
+  .counter .plus{background:var(--danger); color:#fff;}
+  .counter .n{font-size:15px; font-weight:800; min-width:18px; text-align:center; color:var(--muted);}
+  .counter .n.on{color:var(--danger);}
+
+  .chips{display:flex; flex-wrap:wrap; gap:7px;}
+  .chip{padding:7px 11px; border-radius:9px; border:1px solid var(--border); background:var(--surface); color:var(--sub); font-size:12px; cursor:pointer; user-select:none; font-weight:600;}
+  .chip.on{background:var(--accent-dim); border-color:var(--accent); color:var(--accent); font-weight:800; box-shadow:0 0 12px var(--accent-dim);}
+  .chip.on::before{content:'✓ ';}
+
+  .reinforce{margin-top:18px; display:flex; align-items:center; justify-content:space-between; padding:13px 14px; border:1px solid var(--border); border-radius:11px; background:var(--surface);}
+  .reinforce .t{font-size:13px; font-weight:700;}
+  .reinforce .t small{display:block; color:var(--muted); font-weight:400; font-size:11px; margin-top:2px;}
+  .toggle{width:46px; height:26px; border-radius:20px; background:var(--accent); position:relative; cursor:pointer; flex-shrink:0; transition:.15s; box-shadow:0 0 12px var(--accent-dim);}
+  .toggle::after{content:''; position:absolute; top:3px; left:23px; width:20px; height:20px; border-radius:50%; background:#000; transition:.15s;}
+  .toggle.off{background:var(--border-h); box-shadow:none;} .toggle.off::after{left:3px; background:#777;}
+
+  .savebar{margin-top:18px; display:flex; gap:10px;}
+  .btn{flex:1; padding:13px; border-radius:11px; border:none; font-weight:800; font-size:14px; cursor:pointer;}
+  .btn.save{background:var(--accent); color:#04210f; box-shadow:0 0 18px var(--accent-dim);}
+  .btn.next{background:var(--surface); color:var(--accent); border:1px solid var(--accent); flex:0 0 auto; padding:13px 18px;}
+  .saved-note{text-align:center; color:var(--muted); font-size:11.5px; margin-top:9px;}
+
+  .weak-box{margin:8px 14px 0; padding:14px; border:1px solid var(--danger); border-radius:13px; background:var(--danger-dim);}
+  .weak-box .h{font-size:12.5px; font-weight:800; color:var(--danger); margin-bottom:8px;}
+  .weak-box .w{display:inline-block; padding:3px 10px; border-radius:8px; background:rgba(255,68,68,.12); color:var(--danger); font-size:11.5px; font-weight:700; margin:2px; border:1px solid rgba(255,68,68,.5);}
+  .foot{padding:20px; text-align:center; color:var(--muted); font-size:11px; line-height:1.6;}
+  .foot b{color:var(--accent);}
+  .state-msg{padding:40px 18px; text-align:center; color:var(--sub); font-size:13px; line-height:1.7;}
+  .state-msg a{color:var(--accent); font-weight:700;}
+</style>
 </head>
 <body>
-  <div class="container">
-    <header class="page-header">
-      <div class="header-brand">
-        <div class="header-logo">P</div>
-        <div>
-          <h1 class="page-title">1등급 <span>측정기</span></h1>
-          <p class="page-subtitle" id="student-label"></p>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <a href="exam.html" style="font-size:11px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#888">시험 응시</a>
-        <button type="button" onclick="if(confirm('로그아웃하시겠습니까?')){localStorage.removeItem('pafa_student');sessionStorage.removeItem('pafa_student');location.href='index.html';}" style="font-size:11px;padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#888;cursor:pointer">로그아웃</button>
-      </div>
-    </header>
-
-    <div id="trk-banner-wrap"></div>
-    <section class="card">
-      <div id="trk-body"><div class="status-banner">시험범위를 불러오는 중입니다.</div></div>
-    </section>
+<div class="phone">
+  <div class="hd">
+    <div>
+      <div class="brand">🔥 1등급 측정기</div>
+      <div class="exam" id="examLabel">불러오는 중…</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+      <a href="exam.html" class="logout" style="text-decoration:none;">시험 응시</a>
+      <button class="logout" onclick="if(confirm('로그아웃하시겠습니까?')){localStorage.removeItem('pafa_student');sessionStorage.removeItem('pafa_student');location.href='index.html';}">로그아웃</button>
+    </div>
   </div>
 
-  <script src="js/api.js"></script>
-  <script src="js/tracker.js"></script>
+  <div class="hero" id="heroWrap" style="display:none;">
+    <div class="donut-col">
+      <div class="donut">
+        <svg width="84" height="84">
+          <circle cx="42" cy="42" r="36" stroke="#262b30" stroke-width="8" fill="none"/>
+          <circle id="donutArc" cx="42" cy="42" r="36" stroke="#00ff88" stroke-width="8" fill="none"
+                  stroke-dasharray="226" stroke-dashoffset="226" stroke-linecap="round"/>
+        </svg>
+        <div class="ctr"><b id="overallPct">0%</b></div>
+      </div>
+      <div class="donut-cap">전체 완성도</div>
+    </div>
+    <div class="info">
+      <span class="dday" id="ddayBadge">D-?</span>
+      <div class="msg" id="heroMsg"></div>
+    </div>
+  </div>
+
+  <div class="sec-lbl" id="secLbl" style="display:none;"></div>
+  <div class="plist" id="plist"><div class="state-msg">불러오는 중…</div></div>
+
+  <div id="weakWrap"></div>
+
+  <div class="foot">
+    입력한 내용은 선생님 대시보드와<br>부모님 페이지에 그대로 표시됩니다.<br>
+    <b id="footAcademy">1등급 측정기</b>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/tracker.js"></script>
 </body>
 </html>

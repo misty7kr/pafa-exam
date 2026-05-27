@@ -1,33 +1,26 @@
 // ════════════════════════════════════════════════════════════
-// 1등급 측정기 — 학생 자가평가 화면 (2026-05-27 신규)
+// 1등급 측정기 — 학생 화면 (목업 v3 뽀스 네온 + v1 API 연동, 2026-05-27)
 // 계약(SSOT v1-tracker.js): GET /v1/scope, GET/POST /v1/tracker
-// 인증: student_id (세션 고정값, UI 입력받지 않음 — Codex#3)
+// 인증: student_id (세션 고정, UI 미입력 — Codex#3)
 // ════════════════════════════════════════════════════════════
 (function () {
   'use strict';
 
-  // 슬라이더 5축 = 영어 지문 학습 완성도 (completion_pct = 5축 평균, 서버계산)
-  const SLIDERS = [
-    { key: '어휘', label: '어휘' },
-    { key: '해석', label: '해석' },
-    { key: '구문', label: '구문' },
-    { key: '내용', label: '내용' },
-    { key: '문제', label: '문제' },
-  ];
-  // 약점 유형 14종 (학원 igzam-tracker.js와 동일 체계)
-  const WEAK_TYPES = [
-    '빈칸추론', '주제·제목', '요지·주장', '함의추론', '문장삽입', '문장순서',
-    '흐름무관문장', '어법', '어휘', '지칭추론', '내용일치·불일치', '연결사빈칸',
-    '추론유형', '서술형'
-  ];
+  // 슬라이더 5축 (목업 v3 라벨 = sliders 키. completion_pct = 평균, 서버계산)
+  const SLIDERS = ['해석 완성도', '지문 이해도', '문법 완성도', '워크북 완성도', '변형문제 완성도'];
+  // 틀린 유형 19종 (목업 v3) — 객관식 14 + 서술형 5
+  const OBJ = ['대의파악', '함의추론', '일치불일치', '어법', '어휘', '빈칸추론', '흐름무관', '문장순서', '문장삽입', '요약빈칸', '추론', '연결사', '지칭추론', '학생반응'];
+  const WRT = ['요약빈칸영작', '주제/요지영작', '빈칸영작', '한영영작', '복합지문영작'];
+  const TYPES = [...OBJ, ...WRT];
+  const CIRC = 226; // 2π·36 (도넛)
 
-  let student = null;
-  let scope = null;
-  let passages = [];
-  const progressMap = {}; // scope_passage_id → progress row
+  let STUDENT = null, SCOPE = null, PASSAGES = [];
+  const state = {};            // idx → { sliders{}, counters{}, done[], reinforce }
+  const saveTimers = {};       // idx → debounce timer
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-  function $(id) { return document.getElementById(id); }
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const parse = (v, d) => { if (v == null) return d; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return d; } };
 
   function getStudent() {
     const raw = localStorage.getItem('pafa_student') || sessionStorage.getItem('pafa_student');
@@ -35,191 +28,255 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
+  function blankCard() {
+    const sliders = {}; SLIDERS.forEach(s => sliders[s] = 0);
+    const counters = {}; TYPES.forEach(t => counters[t] = 0);
+    return { sliders, counters, done: [], reinforce: false };
+  }
+  function getCard(idx) { if (!state[idx]) state[idx] = blankCard(); return state[idx]; }
+
+  function cardPct(idx) {
+    const c = getCard(idx);
+    const sum = SLIDERS.reduce((a, s) => a + (Number(c.sliders[s]) || 0), 0);
+    return Math.round(sum / SLIDERS.length);
+  }
+  function overallPct() {
+    if (!PASSAGES.length) return 0;
+    const sum = PASSAGES.reduce((a, _, i) => a + cardPct(i), 0);
+    return Math.round(sum / PASSAGES.length);
+  }
+  function ddayNum() {
+    if (!SCOPE || !SCOPE.exam_date) return null;
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const e = new Date(SCOPE.exam_date); e.setHours(0, 0, 0, 0);
+    return Math.round((e - t) / 86400000);
+  }
+
+  // ── 진입 ──
   async function boot() {
-    student = getStudent();
-    if (!student || !student.student_id) { location.href = 'index.html'; return; }
-    $('student-label').textContent = `${student.name || ''} 학생`;
-    if (!student.school || !student.grade) {
-      // 기존 세션은 school/grade가 없음 → 재로그인 안내 (auth.js 갱신분 적용 위해)
-      $('trk-body').innerHTML = '<div class="status-banner">학교·학년 정보 갱신이 필요합니다. <a href="index.html" style="color:var(--accent);font-weight:700">다시 로그인</a> 후 이용해주세요.</div>';
+    STUDENT = getStudent();
+    if (!STUDENT || !STUDENT.student_id) { location.href = 'index.html'; return; }
+    if (!STUDENT.school || !STUDENT.grade) {
+      $('plist').innerHTML = '<div class="state-msg">학교·학년 정보 갱신이 필요해요.<br><a href="index.html">다시 로그인</a> 후 이용해주세요.</div>';
       return;
     }
+    $('footAcademy').textContent = ({ J: '저스틴영어학원', P: '패스파인더학원', '4': '4.0' }[STUDENT.academy_code] || '학원') + ' · 1등급 측정기';
     try {
-      const sc = await window.api.v1Get('/scope', { academy_code: student.academy_code, school: student.school, grade: student.grade });
-      if (!sc.ok || !sc.scope) { $('trk-body').innerHTML = '<div class="status-banner">아직 등록된 시험범위가 없습니다. 학원에서 시험범위를 등록하면 표시됩니다.</div>'; return; }
-      scope = sc.scope; passages = Array.isArray(sc.passages) ? sc.passages : [];
-      const tr = await window.api.v1Get('/tracker', { student_id: student.student_id, scope_id: scope.id });
-      (tr.progress || []).forEach(p => { progressMap[p.scope_passage_id] = normalizeProgress(p); });
-      renderBanner();
+      const sc = await window.api.v1Get('/scope', { academy_code: STUDENT.academy_code, school: STUDENT.school, grade: STUDENT.grade });
+      if (!sc.ok || !sc.scope) { $('plist').innerHTML = '<div class="state-msg">아직 등록된 시험범위가 없어요.<br>학원에서 시험범위를 올리면 표시됩니다.</div>'; return; }
+      SCOPE = sc.scope;
+      PASSAGES = (sc.passages || []).map(p => ({
+        id: p.id, num: p.number || p.passage_idx,
+        title: (p.passage_text || '').trim().slice(0, 32) || ('지문 ' + (p.number || p.passage_idx)),
+        textbook: p.textbook || p.category || '', unit: p.unit || '',
+      }));
+      $('examLabel').textContent = `${STUDENT.school} · ${STUDENT.grade} · ${SCOPE.exam_year || ''} ${SCOPE.exam_term || ''}`.trim();
+      // 기존 입력 로드
+      const tr = await window.api.v1Get('/tracker', { student_id: STUDENT.student_id, scope_id: SCOPE.id });
+      (tr.progress || []).forEach(pr => {
+        const idx = PASSAGES.findIndex(p => p.id === pr.scope_passage_id);
+        if (idx < 0) return;
+        const c = blankCard();
+        const sl = parse(pr.sliders, {}); SLIDERS.forEach(s => { if (sl[s] != null) c.sliders[s] = Number(sl[s]) || 0; });
+        const wc = parse(pr.wrong_counters, {}); TYPES.forEach(t => { if (wc[t] != null) c.counters[t] = Number(wc[t]) || 0; });
+        c.done = parse(pr.done_types, []) || [];
+        c.reinforce = !!pr.watched_reinforce;
+        state[idx] = c;
+      });
+      $('heroWrap').style.display = '';
+      $('secLbl').style.display = '';
+      $('secLbl').textContent = `시험범위 지문 (${PASSAGES.length}개) — 지문별로 입력하세요`;
       renderList();
-    } catch (e) { $('trk-body').innerHTML = '<div class="status-banner" style="color:var(--danger)">불러오기 실패: ' + esc(e.message) + '</div>'; }
-  }
-
-  function normalizeProgress(p) {
-    const parse = (v, d) => { if (v == null) return d; if (typeof v === 'object') return v; try { return JSON.parse(v); } catch { return d; } };
-    return {
-      scope_passage_id: p.scope_passage_id,
-      sliders: parse(p.sliders, {}),
-      wrong_counters: parse(p.wrong_counters, {}),
-      done_types: parse(p.done_types, []),
-      watched_reinforce: !!p.watched_reinforce,
-      memo: p.memo || '',
-    };
-  }
-
-  function avgPct(sliders) {
-    const vals = SLIDERS.map(s => Number(sliders[s.key]) || 0);
-    return Math.round(vals.reduce((a, b) => a + b, 0) / SLIDERS.length);
-  }
-
-  function overallPct() {
-    if (!passages.length) return 0;
-    const sum = passages.reduce((acc, p) => acc + avgPct((progressMap[p.id] || {}).sliders || {}), 0);
-    return Math.round(sum / passages.length);
-  }
-
-  function ddayInfo() {
-    if (!scope.exam_date) return null;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const ex = new Date(scope.exam_date); ex.setHours(0, 0, 0, 0);
-    const diff = Math.round((ex - today) / 86400000);
-    return diff;
-  }
-
-  function personalMsg(pct, dday) {
-    if (dday != null && dday < 0) return '시험이 끝났어요. 틀린 유형을 복습하며 다음을 준비하자!';
-    if (dday != null && dday <= 3) {
-      if (pct < 70) return '시험이 코앞이야! 완성도 낮은 지문부터 다시 보자. 약점 유형 집중!';
-      return '거의 다 됐어! 약점 유형만 마지막으로 점검하면 1등급 간다.';
+      renderHero();
+      renderWeak();
+    } catch (e) {
+      $('plist').innerHTML = '<div class="state-msg" style="color:var(--danger)">불러오기 실패: ' + esc(e.message) + '</div>';
     }
-    if (pct >= 90) return '훌륭해! 이대로 약점만 메우면 1등급 안정권이야.';
-    if (pct >= 60) return '잘하고 있어. 완성도 낮은 지문을 끌어올리자.';
-    return '아직 초반이야. 지문별로 하나씩 완성도를 채워보자!';
   }
 
-  function renderBanner() {
-    const pct = overallPct();
-    const dday = ddayInfo();
-    const ddayTxt = dday == null ? '' : (dday > 0 ? `D-${dday}` : dday === 0 ? 'D-DAY' : `D+${Math.abs(dday)}`);
-    $('trk-banner-wrap').innerHTML = `
-      <div class="trk-banner">
-        <div class="trk-dday">${esc(scope.title || (student.school + ' ' + student.grade))}${ddayTxt ? ' · ' + ddayTxt : ''}</div>
-        <div class="trk-msg">${esc(personalMsg(pct, dday))}</div>
-        <div class="trk-overall"><span style="font-size:12px">전체 완성도</span><div class="bar"><div style="width:${pct}%"></div></div><span style="font-size:13px;font-weight:700;color:var(--gold3)">${pct}%</span></div>
-      </div>`;
-  }
-
-  function pctColor(pct) { return pct >= 80 ? 'background:#d6f0e2;color:var(--success)' : pct >= 50 ? 'background:#fdf0d0;color:#a07b1d' : 'background:#fbe0e0;color:var(--danger)'; }
-
+  // ── 지문 목록 ──
   function renderList() {
-    const html = passages.map(p => {
-      const prog = progressMap[p.id] || {};
-      const pct = avgPct(prog.sliders || {});
-      const meta = [p.category, p.textbook, p.unit, p.number].filter(Boolean).join(' · ');
-      return `
-        <div class="psg-card" id="card-${p.id}" onclick="trkToggle(${p.id})">
-          <div class="psg-head">
-            <div><span class="psg-no">${esc(p.number || p.passage_idx)}</span> <span style="font-size:12px;color:var(--muted)">지문</span><div class="psg-meta">${esc(meta || '-')}</div></div>
-            <span class="psg-pct" style="${pctColor(pct)}">${pct}%</span>
-          </div>
-          <div class="psg-form" id="form-${p.id}"></div>
-        </div>`;
-    }).join('');
-    $('trk-body').innerHTML = `<div class="subtitle-sm">지문 ${passages.length}개 · 지문을 눌러 공부 완성도를 평가하세요.</div>${html}`;
-  }
-
-  function renderForm(pid) {
-    const p = passages.find(x => x.id === pid);
-    const prog = progressMap[pid] || { sliders: {}, wrong_counters: {}, done_types: [], watched_reinforce: false, memo: '' };
-    const preview = (p.passage_text || '').slice(0, 90);
-    const sliders = SLIDERS.map(s => {
-      const v = Number(prog.sliders[s.key]) || 0;
-      return `<div class="sl-row"><label>${s.label}</label><input type="range" min="0" max="100" step="10" value="${v}" oninput="trkSl(${pid},'${s.key}',this.value)"><span class="val" id="slv-${pid}-${s.key}">${v}%</span></div>`;
-    }).join('');
-    const chips = WEAK_TYPES.map(t => {
-      const c = Number((prog.wrong_counters || {})[t]) || 0;
-      return `<div class="wk-chip ${c > 0 ? 'has' : ''}" id="wk-${pid}-${cssId(t)}"><span>${esc(t)}</span><button onclick="event.stopPropagation();trkWk(${pid},'${esc(t)}',-1)">−</button><span class="c" id="wkc-${pid}-${cssId(t)}">${c}</span><button onclick="event.stopPropagation();trkWk(${pid},'${esc(t)}',1)">+</button></div>`;
-    }).join('');
-    const done = (prog.done_types || []).includes('완료');
-    return `
-      <div onclick="event.stopPropagation()">
-        ${preview ? `<div style="font-size:11px;color:var(--muted);background:var(--bg);border-radius:6px;padding:8px;margin-bottom:10px">${esc(preview)}…</div>` : ''}
-        <div class="subtitle-sm">완성도 (어휘·해석·구문·내용·문제)</div>
-        ${sliders}
-        <div class="subtitle-sm">틀린 유형 (풀다가 틀린 만큼 +)</div>
-        <div class="wk-grid">${chips}</div>
-        <label class="trk-check"><input type="checkbox" id="done-${pid}" ${done ? 'checked' : ''}> 이 지문 공부 완료</label>
-        <label class="trk-check"><input type="checkbox" id="reinf-${pid}" ${prog.watched_reinforce ? 'checked' : ''}> 시험 직전 보강 자료 봤어요</label>
-        <textarea id="memo-${pid}" placeholder="메모 (선택)" style="width:100%;min-height:48px;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px">${esc(prog.memo || '')}</textarea>
-        <div class="trk-actions"><button class="btn btn-primary" onclick="event.stopPropagation();trkSave(${pid})" id="save-${pid}">저장</button></div>
+    $('plist').innerHTML = PASSAGES.map((p, idx) => {
+      const pct = cardPct(idx);
+      const col = pct >= 100 ? 'var(--accent)' : pct > 0 ? 'var(--accent)' : 'var(--muted)';
+      const src = (p.textbook ? `<span class="tagm">${esc(p.textbook)}</span>` : '') + esc(p.unit || '');
+      return `<div class="pcard" id="pc-${idx}">
+        <div class="top" onclick="trk.toggle(${idx})">
+          <div class="num">${esc(p.num)}</div>
+          <div class="ptitle"><div class="txt">${esc(p.title)}</div><div class="src">${src || '&nbsp;'}</div></div>
+          <div class="pct" id="pct-${idx}" style="color:${col}">${pct}%</div>
+        </div>
+        <div class="pbody" id="pb-${idx}"></div>
       </div>`;
+    }).join('');
   }
 
-  function cssId(t) { return t.replace(/[^0-9a-zA-Z가-힣]/g, '_'); }
-
-  // 임시 편집 상태 (저장 전)
-  const draft = {};
-  function ensureDraft(pid) {
-    if (!draft[pid]) {
-      const prog = progressMap[pid] || { sliders: {}, wrong_counters: {}, done_types: [], watched_reinforce: false, memo: '' };
-      draft[pid] = { sliders: Object.assign({}, prog.sliders), wrong_counters: Object.assign({}, prog.wrong_counters) };
-    }
-    return draft[pid];
-  }
-
-  window.trkToggle = function (pid) {
-    const form = $('form-' + pid);
-    if (!form) return;
-    const open = form.classList.contains('open');
-    document.querySelectorAll('.psg-form.open').forEach(f => { f.classList.remove('open'); f.innerHTML = ''; });
-    if (!open) { form.innerHTML = renderForm(pid); form.classList.add('open'); }
-  };
-
-  window.trkSl = function (pid, key, val) {
-    ensureDraft(pid).sliders[key] = Number(val);
-    const lab = $('slv-' + pid + '-' + key); if (lab) lab.textContent = val + '%';
-  };
-
-  window.trkWk = function (pid, type, delta) {
-    const d = ensureDraft(pid);
-    const cur = Number(d.wrong_counters[type]) || 0;
-    const next = Math.max(0, cur + delta);
-    d.wrong_counters[type] = next;
-    const cell = $('wkc-' + pid + '-' + cssId(type)); if (cell) cell.textContent = next;
-    const chip = $('wk-' + pid + '-' + cssId(type)); if (chip) chip.classList.toggle('has', next > 0);
-  };
-
-  window.trkSave = async function (pid) {
-    const d = ensureDraft(pid);
-    const btn = $('save-' + pid);
-    // 현재 폼의 슬라이더/체크 최종 수집 (draft + DOM)
-    const sliders = {};
-    SLIDERS.forEach(s => { sliders[s.key] = Number((d.sliders || {})[s.key]) || 0; });
-    const done = $('done-' + pid) && $('done-' + pid).checked;
-    const payload = {
-      student_id: student.student_id,
-      scope_passage_id: pid,
-      sliders,
-      wrong_counters: d.wrong_counters || {},
-      done_types: done ? ['완료'] : [],
-      watched_reinforce: $('reinf-' + pid) ? $('reinf-' + pid).checked : false,
-      memo: $('memo-' + pid) ? $('memo-' + pid).value : '',
+  function renderBody(idx) {
+    const c = getCard(idx);
+    const sliders = SLIDERS.map((s, i) => `
+      <div class="slider"><div class="row"><b>${s}</b><span class="v" id="sv-${idx}-${i}">${c.sliders[s] || 0}%</span></div>
+        <input type="range" min="0" max="100" step="5" value="${c.sliders[s] || 0}" oninput="trk.slide(${idx},${i},this.value)"></div>`).join('');
+    const counter = (t) => {
+      const n = c.counters[t] || 0;
+      return `<div class="counter ${n > 0 ? 'hit' : ''}" id="ct-${idx}-${cid(t)}"><div class="nm">${esc(t)}</div>
+        <div class="ctl"><button class="minus" onclick="trk.cnt(${idx},'${esc(t)}',-1)">−</button>
+        <span class="n ${n > 0 ? 'on' : ''}" id="cn-${idx}-${cid(t)}">${n}</span>
+        <button class="plus" onclick="trk.cnt(${idx},'${esc(t)}',1)">+</button></div></div>`;
     };
-    if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
-    try {
-      const r = await window.api.v1Post('/tracker', payload);
-      if (!r.ok) throw new Error(r.error || '저장 실패');
-      progressMap[pid] = { scope_passage_id: pid, sliders, wrong_counters: payload.wrong_counters, done_types: payload.done_types, watched_reinforce: payload.watched_reinforce, memo: payload.memo };
-      delete draft[pid];
-      // 카드 % 배지 갱신 + 폼 닫기 + 배너 재계산
-      const form = $('form-' + pid); if (form) { form.classList.remove('open'); form.innerHTML = ''; }
-      const pct = avgPct(sliders);
-      const card = $('card-' + pid); const badge = card && card.querySelector('.psg-pct');
-      if (badge) { badge.textContent = pct + '%'; badge.setAttribute('style', pctColor(pct)); }
-      renderBanner();
-    } catch (e) { alert('저장 실패: ' + e.message); }
-    finally { if (btn) { btn.disabled = false; btn.textContent = '저장'; } }
+    const chips = TYPES.map(t => `<span class="chip ${c.done.includes(t) ? 'on' : ''}" id="ch-${idx}-${cid(t)}" onclick="trk.chip(${idx},'${esc(t)}')">${esc(t)}</span>`).join('');
+    $('pb-' + idx).innerHTML = `
+      <div class="block-lbl">공부 완성도 <span class="hint">각 항목을 드래그해서 지금 수준을 표시하세요</span></div>
+      ${sliders}
+      <div class="block-lbl" style="color:var(--danger);">계속 틀리는 유형 <span class="hint">틀릴 때마다 +를 눌러 기록하세요 (내 약점 측정)</span></div>
+      <div class="sub-lbl">객관식</div><div class="cgrid">${OBJ.map(counter).join('')}</div>
+      <div class="sub-lbl" style="margin-top:11px;">서술형</div><div class="cgrid">${WRT.map(counter).join('')}</div>
+      <div class="block-lbl" style="color:var(--accent);">완성한 유형 <span class="hint">이제 자신 있는 유형을 체크하세요</span></div>
+      <div class="chips">${chips}</div>
+      <div class="reinforce"><div class="t">직전보강 강의 시청<small>시험 전 보강 강의를 봤나요?</small></div>
+        <div class="toggle ${c.reinforce ? '' : 'off'}" id="tg-${idx}" onclick="trk.toggleReinforce(${idx})"></div></div>
+      <div class="savebar"><button class="btn save" onclick="trk.save(${idx},true)">저장</button>
+        <button class="btn next" onclick="trk.next(${idx})">다음 지문 →</button></div>
+      <div class="saved-note" id="note-${idx}">입력하면 자동 저장됩니다</div>`;
+  }
+  function cid(t) { return t.replace(/[^0-9a-zA-Z가-힣]/g, '_'); }
+
+  // ── hero (도넛 + D-day + 개인화 멘트) ──
+  function renderHero() {
+    const pct = overallPct();
+    $('overallPct').textContent = pct + '%';
+    $('donutArc').setAttribute('stroke-dashoffset', String(Math.round(CIRC * (1 - pct / 100))));
+    const d = ddayNum();
+    $('ddayBadge').textContent = d == null ? '시험일 미정' : (d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`);
+    $('heroMsg').innerHTML = `<b style="color:var(--accent);font-weight:700;">${ddayLine(d, pct)}</b><br>${personalLine(d, pct)}`;
+  }
+  function ddayLine(d, p) {
+    if (d == null) return '함께 차근차근 채워가요';
+    if (d < 0) return '시험은 끝났어요. 정말 수고했어요!';
+    if (d === 0) return '오늘이 시험! 자신 있게 가요';
+    if (d <= 3) return `D-${d} · 컨디션 챙기고 차분하게`;
+    if (d <= 7) return `D-${d} · 마지막 1주, 약점만 집중!`;
+    if (d <= 14) return `D-${d} · 2주 남았어요, 페이스 끌어올려요`;
+    if (d <= 30) return `D-${d} · 한 달 안쪽, 지금이 황금기`;
+    if (d <= 60) return `D-${d} · 여유 있을 때 기초부터 탄탄히`;
+    return `D-${d} · 천천히 함께 시작해요`;
+  }
+  function pctLine(p) {
+    if (p >= 100) return '범위 전체 완성! 약점 유형만 마무리하면 완벽해요';
+    if (p >= 80) return '거의 다 왔어요 · 틀린 유형만 한 번 더 점검해요';
+    if (p >= 60) return '후반이에요 · 자신 없는 지문 위주로 돌려요';
+    if (p >= 40) return '절반 넘었어요 · 약점 유형부터 메워가요';
+    if (p >= 20) return '초반 페이스 좋아요 · 하루 한 지문씩 쌓아가요';
+    if (p > 0) return '막 시작했어요 · 오늘 한 지문이면 충분해요';
+    return '아직 시작 전 · 첫 지문부터 가볍게 열어볼까요?';
+  }
+  function personalLine(d, pct) {
+    // 전체 집계
+    const weak = {}; TYPES.forEach(t => weak[t] = 0);
+    let anyReinforce = false, doneCnt = 0;
+    PASSAGES.forEach((_, i) => {
+      const c = getCard(i);
+      TYPES.forEach(t => weak[t] += c.counters[t] || 0);
+      if (c.reinforce) anyReinforce = true;
+      if (cardPct(i) > 0) doneCnt++;
+    });
+    const sliderAvg = {};
+    SLIDERS.forEach(s => { sliderAvg[s] = PASSAGES.length ? PASSAGES.reduce((a, _, i) => a + (getCard(i).sliders[s] || 0), 0) / PASSAGES.length : 0; });
+    // 1. 시험 임박 + 직전보강 미시청
+    if (d != null && d >= 0 && d <= 7 && !anyReinforce) return '시험이 코앞! 직전보강 강의부터 챙겨봐요';
+    // 2. 특정 유형 반복 오답
+    const wk = Object.entries(weak).sort((a, b) => b[1] - a[1])[0];
+    if (wk && wk[1] >= 3) return `<b style="color:var(--danger)">${esc(wk[0])}</b>이 자꾸 걸리네요. 그것만 잡으면 점수가 확 올라요`;
+    // 3. 슬라이더 한 항목만 유독 낮음
+    const vals = Object.values(sliderAvg), avg = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+    const low = Object.entries(sliderAvg).sort((a, b) => a[1] - b[1])[0];
+    if (low && (avg - low[1]) >= 15) return `<b>${esc(low[0])}</b>이 약해요. 거기만 보강하면 균형이 맞아요`;
+    // 4. 완성도 높은데 오답 多
+    const wkSum = Object.values(weak).reduce((a, b) => a + b, 0);
+    if (pct >= 70 && wkSum >= 10) return '완성도는 높은데 실수가 잦아요. 실전 정확도를 올려봐요';
+    // 5. fallback
+    return pctLine(pct);
+  }
+
+  // ── 약점 Top4 ──
+  function renderWeak() {
+    const weak = {}; TYPES.forEach(t => weak[t] = 0);
+    PASSAGES.forEach((_, i) => TYPES.forEach(t => weak[t] += getCard(i).counters[t] || 0));
+    const top = Object.entries(weak).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    if (!top.length) { $('weakWrap').innerHTML = ''; return; }
+    $('weakWrap').innerHTML = `<div class="sec-lbl">내 약점 (가장 많이 틀린 유형)</div>
+      <div class="weak-box"><div class="h">집중 보완 필요 Top ${top.length}</div>
+      ${top.map(([t, n]) => `<span class="w">${esc(t)} ×${n}</span>`).join('')}</div>`;
+  }
+
+  // ── 핸들러 (window.trk) ──
+  const openIdx = { v: -1 };
+  window.trk = {
+    toggle(idx) {
+      const card = $('pc-' + idx);
+      const isOpen = card.classList.contains('open');
+      if (openIdx.v >= 0 && openIdx.v !== idx) { const o = $('pc-' + openIdx.v); if (o) o.classList.remove('open'); }
+      if (isOpen) { card.classList.remove('open'); openIdx.v = -1; }
+      else { renderBody(idx); card.classList.add('open'); openIdx.v = idx; card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    },
+    slide(idx, i, val) {
+      const c = getCard(idx); c.sliders[SLIDERS[i]] = Number(val);
+      $('sv-' + idx + '-' + i).textContent = val + '%';
+      refreshCardPct(idx); this.save(idx);
+    },
+    cnt(idx, t, delta) {
+      const c = getCard(idx); c.counters[t] = Math.max(0, (c.counters[t] || 0) + delta);
+      const n = c.counters[t];
+      const cell = $('cn-' + idx + '-' + cid(t)), box = $('ct-' + idx + '-' + cid(t));
+      if (cell) { cell.textContent = n; cell.classList.toggle('on', n > 0); }
+      if (box) box.classList.toggle('hit', n > 0);
+      this.save(idx);
+    },
+    chip(idx, t) {
+      const c = getCard(idx); const i = c.done.indexOf(t);
+      if (i >= 0) c.done.splice(i, 1); else c.done.push(t);
+      const el = $('ch-' + idx + '-' + cid(t)); if (el) el.classList.toggle('on', c.done.includes(t));
+      this.save(idx);
+    },
+    toggleReinforce(idx) {
+      const c = getCard(idx); c.reinforce = !c.reinforce;
+      const el = $('tg-' + idx); if (el) el.classList.toggle('off', !c.reinforce);
+      this.save(idx);
+    },
+    next(idx) {
+      if (idx + 1 < PASSAGES.length) this.toggle(idx + 1);
+      else { const o = $('pc-' + idx); if (o) o.classList.remove('open'); openIdx.v = -1; }
+    },
+    save(idx, immediate) {
+      if (saveTimers[idx]) clearTimeout(saveTimers[idx]);
+      const run = () => pushToServer(idx);
+      if (immediate) run(); else saveTimers[idx] = setTimeout(run, 700);
+    },
   };
+
+  function refreshCardPct(idx) {
+    const pct = cardPct(idx);
+    const el = $('pct-' + idx);
+    if (el) { el.textContent = pct + '%'; el.style.color = pct > 0 ? 'var(--accent)' : 'var(--muted)'; }
+    renderHero();
+  }
+
+  async function pushToServer(idx) {
+    const p = PASSAGES[idx]; if (!p || !p.id || !STUDENT) return;
+    const c = getCard(idx);
+    const note = $('note-' + idx);
+    try {
+      const r = await window.api.v1Post('/tracker', {
+        student_id: STUDENT.student_id, scope_passage_id: p.id,
+        sliders: c.sliders, wrong_counters: c.counters, done_types: c.done,
+        watched_reinforce: c.reinforce, memo: '',
+      });
+      if (!r.ok) throw new Error(r.error || '저장 실패');
+      if (note) { note.textContent = '✓ 저장됨 ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }); note.style.color = 'var(--accent)'; }
+      renderWeak();
+    } catch (e) {
+      if (note) { note.textContent = '저장 실패 (네트워크) — 다시 시도하세요'; note.style.color = 'var(--danger)'; }
+    }
+  }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
