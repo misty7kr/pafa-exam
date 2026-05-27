@@ -235,7 +235,8 @@
 
   async function login(academy_code, name, birthdate) {
     const data = await window.api.apiPost('/auth/login', { academy_code: academy_code.toUpperCase(), name, birthdate });
-    const studentData = JSON.stringify({ student_id: data.student_id, name: data.name, academy_code });
+    // school/grade도 저장 — 1등급 측정기 GET /v1/scope 필수값 (백엔드 /auth/login이 이미 응답)
+    const studentData = JSON.stringify({ student_id: data.student_id, name: data.name, academy_code, school: data.school || '', grade: data.grade || '' });
     localStorage.setItem('pafa_student', studentData);
     sessionStorage.setItem('pafa_student', studentData);
     window.location.href = 'exam.html';
