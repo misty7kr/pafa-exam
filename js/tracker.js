@@ -201,7 +201,7 @@
   function renderWeak() {
     const weak = {}; TYPES.forEach(t => weak[t] = 0);
     PASSAGES.forEach((_, i) => TYPES.forEach(t => weak[t] += getCard(i).counters[t] || 0));
-    const top = Object.entries(weak).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const top = Object.entries(weak).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
     if (!top.length) { $('weakWrap').innerHTML = ''; return; }
     $('weakWrap').innerHTML = `<div class="sec-lbl">내 약점 (가장 많이 틀린 유형)</div>
       <div class="weak-box"><div class="h">집중 보완 필요 Top ${top.length}</div>
