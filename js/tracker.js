@@ -56,9 +56,26 @@
   async function boot() {
     STUDENT = getStudent();
     if (!STUDENT || !STUDENT.student_id) { location.href = 'index.html'; return; }
+    // 옛 학생 자동 복구 (INC_20260528c): 2026-05-27 이전 auth.js로 로그인한 학생은
+    // localStorage에 school/grade 누락 → /student/me로 server에서 보강 (다시 로그인 강요 0).
     if (!STUDENT.school || !STUDENT.grade) {
-      $('plist').innerHTML = '<div class="state-msg">학교·학년 정보 갱신이 필요해요.<br><a href="index.html">다시 로그인</a> 후 이용해주세요.</div>';
-      return;
+      try {
+        const me = await window.api.apiGet('/student/me', { student_id: STUDENT.student_id });
+        if (!me.ok) throw new Error(me.error || '학생 정보 조회 실패');
+        STUDENT.school = me.school || '';
+        STUDENT.grade = me.grade || '';
+        STUDENT.academy_code = me.academy_code || STUDENT.academy_code;
+        const fresh = JSON.stringify(STUDENT);
+        localStorage.setItem('pafa_student', fresh);
+        sessionStorage.setItem('pafa_student', fresh);
+      } catch (e) {
+        $('plist').innerHTML = '<div class="state-msg">학교·학년 정보 갱신 실패: ' + esc(e.message || '') + '<br><a href="index.html">다시 로그인</a> 후 이용해주세요.</div>';
+        return;
+      }
+      if (!STUDENT.school || !STUDENT.grade) {
+        $('plist').innerHTML = '<div class="state-msg">학교·학년 정보가 비어있어요.<br><a href="index.html">다시 로그인</a> 후 이용해주세요.</div>';
+        return;
+      }
     }
     $('footAcademy').textContent = ({ J: '저스틴영어학원', P: '패스파인더학원', '4': '4.0' }[STUDENT.academy_code] || '학원') + ' · 1등급 측정기';
     try {
