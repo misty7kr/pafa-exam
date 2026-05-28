@@ -197,15 +197,40 @@
     return pctLine(pct);
   }
 
-  // ── 약점 Top4 ──
+  // ── 약점 Top10 + 지문 점프 (b 옵션: 단순+직관) ──
+  //   유형 칩만 평소 표시 → 2개+ 지문이면 ▼ 펼침으로 지문 목록 → 클릭 시 그 지문 카드로 점프.
+  //   지문 1개면 칩 자체가 점프 (펼침 불필요 = 더 단순).
+  let weakOpen = {}; // 펼침 상태 (유형명 → boolean)
   function renderWeak() {
-    const weak = {}; TYPES.forEach(t => weak[t] = 0);
-    PASSAGES.forEach((_, i) => TYPES.forEach(t => weak[t] += getCard(i).counters[t] || 0));
+    const weak = {}; const byPassage = {};
+    TYPES.forEach(t => { weak[t] = 0; byPassage[t] = []; });
+    PASSAGES.forEach((_, i) => {
+      const c = getCard(i);
+      TYPES.forEach(t => {
+        const n = c.counters[t] || 0;
+        if (n > 0) { weak[t] += n; byPassage[t].push(i); }
+      });
+    });
     const top = Object.entries(weak).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    if (!top.length) { $('weakWrap').innerHTML = ''; return; }
+    if (!top.length) { $('weakWrap').innerHTML = ''; weakOpen = {}; return; }
+    const chips = top.map(([t, n]) => {
+      const ps = byPassage[t];
+      const tEsc = String(t).replace(/'/g, "\\'");
+      if (ps.length === 1) {
+        return `<span class="w" onclick="trk.jumpTo(${ps[0]})" title="지문 ${ps[0] + 1}로 이동" style="cursor:pointer">${esc(t)} ×${n} →</span>`;
+      }
+      const open = !!weakOpen[t];
+      const jumps = open ? ps.map(i =>
+        `<span onclick="trk.jumpTo(${i})" style="display:inline-block;margin:3px 4px 0 0;padding:3px 9px;border:1px solid rgba(255,68,68,.5);border-radius:7px;color:var(--danger);font-size:11.5px;font-weight:700;cursor:pointer;background:rgba(255,68,68,.06)">→ 지문 ${i + 1}</span>`
+      ).join('') : '';
+      return `<div style="display:inline-block;margin:3px 2px;vertical-align:top">
+        <span class="w" onclick="trk.weakToggle('${tEsc}')" style="cursor:pointer">${esc(t)} ×${n} ${open ? '▲' : '▼'}</span>
+        ${open ? `<div style="margin:4px 0 6px 4px;padding:6px 4px 4px;border-top:1px dashed rgba(255,68,68,.3)">${jumps}</div>` : ''}
+      </div>`;
+    }).join('');
     $('weakWrap').innerHTML = `<div class="sec-lbl">내 약점 (가장 많이 틀린 유형)</div>
-      <div class="weak-box"><div class="h">집중 보완 필요 Top ${top.length}</div>
-      ${top.map(([t, n]) => `<span class="w">${esc(t)} ×${n}</span>`).join('')}</div>`;
+      <div class="weak-box"><div class="h">집중 보완 필요 Top ${top.length} <span style="font-weight:600;color:var(--muted);font-size:10.5px">— 누르면 어느 지문인지 보여요</span></div>
+      ${chips}</div>`;
   }
 
   // ── 핸들러 (window.trk) ──
@@ -250,6 +275,21 @@
       if (saveTimers[idx]) clearTimeout(saveTimers[idx]);
       const run = () => pushToServer(idx);
       if (immediate) run(); else saveTimers[idx] = setTimeout(run, 700);
+    },
+    // 약점 칩 펼침 토글 (2개+ 지문)
+    weakToggle(t) {
+      weakOpen[t] = !weakOpen[t];
+      renderWeak();
+    },
+    // 약점 → 지문 점프 (닫혀있으면 열고 스크롤, 열려있으면 스크롤만)
+    jumpTo(idx) {
+      const card = $('pc-' + idx);
+      if (!card) return;
+      if (card.classList.contains('open')) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        this.toggle(idx); // toggle 내부에서 renderBody + scrollIntoView
+      }
     },
   };
 
