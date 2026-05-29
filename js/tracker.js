@@ -104,8 +104,11 @@
       $('secLbl').style.display = '';
       $('secLbl').textContent = `시험범위 지문 (${PASSAGES.length}개) — 지문별로 입력하세요`;
       renderList();
+      renderJump();
       renderHero();
+      renderDdayBanner();
       renderWeak();
+      renderHeatmap();
     } catch (e) {
       $('plist').innerHTML = '<div class="state-msg" style="color:var(--danger)">불러오기 실패: ' + esc(e.message) + '</div>';
     }
@@ -126,6 +129,17 @@
         <div class="pbody" id="pb-${idx}"></div>
       </div>`;
     }).join('');
+  }
+
+  // ── 지문 바로가기 드롭다운 ──
+  function renderJump() {
+    const sel = $('pjump'); if (!sel) return;
+    sel.innerHTML = '<option value="">🔍 지문 바로가기 — 선택하면 이동</option>' +
+      PASSAGES.map((p, i) => {
+        const label = (p.num != null ? p.num : (i + 1)) + (p.title ? ' · ' + p.title : '');
+        return `<option value="${i}">${esc(label)}</option>`;
+      }).join('');
+    $('pjumpWrap').style.display = '';
   }
 
   function renderBody(idx) {
@@ -166,6 +180,56 @@
     $('ddayBadge').textContent = d == null ? '시험일 미정' : (d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`);
     $('heroMsg').innerHTML = `<b style="color:var(--accent);font-weight:700;">${ddayLine(d, pct)}</b><br>${personalLine(d, pct)}`;
   }
+  // ── ① D-day 금색 배너 ──
+  function renderDdayBanner() {
+    const banner = $('ddayBanner'); if (!banner) return;
+    const d = ddayNum();
+    const dt = (SCOPE && SCOPE.exam_date) ? String(SCOPE.exam_date).slice(0, 10) : '미정';
+    $('ddBigDate').textContent = dt;
+    $('ddBigNum').textContent = d == null ? '미정' : (d > 0 ? `D-${d}` : d === 0 ? 'D-DAY' : `D+${-d}`);
+    banner.style.display = '';
+  }
+
+  // ── ③ 약점 히트맵 색 스케일 (목업: 0 빈칸 / 1~2 금색 / 3~4 주황 / 5+ 빨강) ──
+  function heatColor(n) {
+    if (n >= 5) return { bg: '#ef4444', fg: '#fff' };
+    if (n >= 3) return { bg: '#f59e0b', fg: '#0a0e1a' };
+    if (n >= 1) return { bg: '#fbbf24', fg: '#0a0e1a' };
+    return { bg: 'var(--elevated)', fg: 'var(--muted)' };
+  }
+
+  // ── ③ 약점 히트맵 (지문 × 유형) — 오답 있는 지문/유형만 ──
+  function renderHeatmap() {
+    const wrap = $('heatWrap'); if (!wrap) return;
+    // 유형별 총합 (열) + 지문별 총합 (행) 으로 0 제거
+    const colTotal = {}; TYPES.forEach(t => colTotal[t] = 0);
+    const rowsIdx = [];
+    PASSAGES.forEach((_, i) => {
+      const c = getCard(i);
+      let rowSum = 0;
+      TYPES.forEach(t => { const n = c.counters[t] || 0; colTotal[t] += n; rowSum += n; });
+      if (rowSum > 0) rowsIdx.push(i);
+    });
+    const cols = TYPES.filter(t => colTotal[t] > 0);
+    if (!rowsIdx.length || !cols.length) { wrap.innerHTML = ''; return; }
+    const headCells = cols.map(t => `<th title="${esc(t)}">${esc(t)}</th>`).join('');
+    const body = rowsIdx.map(i => {
+      const c = getCard(i), p = PASSAGES[i];
+      const label = esc('지문 ' + (p.num != null ? p.num : i + 1));
+      const cells = cols.map(t => {
+        const n = c.counters[t] || 0;
+        const col = heatColor(n);
+        return `<td><div class="hc" style="background:${col.bg};color:${col.fg}" onclick="trk.jumpTo(${i})">${n > 0 ? n : ''}</div></td>`;
+      }).join('');
+      return `<tr><th class="rl" onclick="trk.jumpTo(${i})" title="${label}">${label}</th>${cells}</tr>`;
+    }).join('');
+    wrap.innerHTML = `<div class="heat-sec">
+      <div class="heat-h">약점 히트맵 <small>— 지문별로 어떤 유형을 자주 틀렸는지</small></div>
+      <div class="heat-wrap"><table class="heat-tbl"><thead><tr><th class="rl"></th>${headCells}</tr></thead><tbody>${body}</tbody></table></div>
+      <div class="heat-leg"><span><i style="background:var(--elevated)"></i>0</span><span><i style="background:#fbbf24"></i>1~2</span><span><i style="background:#f59e0b"></i>3~4</span><span><i style="background:#ef4444"></i>5+</span></div>
+    </div>`;
+  }
+
   function ddayLine(d, p) {
     if (d == null) return '함께 차근차근 채워가요';
     if (d < 0) return '시험은 끝났어요. 정말 수고했어요!';
@@ -217,37 +281,34 @@
   // ── 약점 Top10 + 지문 점프 (b 옵션: 단순+직관) ──
   //   유형 칩만 평소 표시 → 2개+ 지문이면 ▼ 펼침으로 지문 목록 → 클릭 시 그 지문 카드로 점프.
   //   지문 1개면 칩 자체가 점프 (펼침 불필요 = 더 단순).
-  let weakOpen = {}; // 펼침 상태 (유형명 → boolean)
+  // ── ② 약점 순위 랭킹 (유형별 총 오답, 누르면 가장 많이 틀린 지문으로 점프) ──
   function renderWeak() {
-    const weak = {}; const byPassage = {};
-    TYPES.forEach(t => { weak[t] = 0; byPassage[t] = []; });
+    const weak = {}; const worst = {}; // 유형 → 합계 / 유형 → 가장 많이 틀린 지문 idx
+    TYPES.forEach(t => { weak[t] = 0; worst[t] = { idx: -1, n: 0 }; });
     PASSAGES.forEach((_, i) => {
       const c = getCard(i);
       TYPES.forEach(t => {
         const n = c.counters[t] || 0;
-        if (n > 0) { weak[t] += n; byPassage[t].push(i); }
+        if (n > 0) { weak[t] += n; if (n > worst[t].n) worst[t] = { idx: i, n }; }
       });
     });
     const top = Object.entries(weak).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    if (!top.length) { $('weakWrap').innerHTML = ''; weakOpen = {}; return; }
-    const chips = top.map(([t, n]) => {
-      const ps = byPassage[t];
-      const tEsc = String(t).replace(/'/g, "\\'");
-      if (ps.length === 1) {
-        return `<span class="w" onclick="trk.jumpTo(${ps[0]})" title="지문 ${ps[0] + 1}로 이동" style="cursor:pointer">${esc(t)} ×${n} →</span>`;
-      }
-      const open = !!weakOpen[t];
-      const jumps = open ? ps.map(i =>
-        `<span onclick="trk.jumpTo(${i})" style="display:inline-block;margin:3px 4px 0 0;padding:3px 9px;border:1px solid rgba(255,68,68,.5);border-radius:7px;color:var(--danger);font-size:11.5px;font-weight:700;cursor:pointer;background:rgba(255,68,68,.06)">→ 지문 ${i + 1}</span>`
-      ).join('') : '';
-      return `<div style="display:inline-block;margin:3px 2px;vertical-align:top">
-        <span class="w" onclick="trk.weakToggle('${tEsc}')" style="cursor:pointer">${esc(t)} ×${n} ${open ? '▲' : '▼'}</span>
-        ${open ? `<div style="margin:4px 0 6px 4px;padding:6px 4px 4px;border-top:1px dashed rgba(255,68,68,.3)">${jumps}</div>` : ''}
+    if (!top.length) { $('weakWrap').innerHTML = ''; return; }
+    const rows = top.map(([t, n], rank) => {
+      const col = heatColor(n).bg;
+      const wi = worst[t].idx;
+      const num = wi >= 0 ? (PASSAGES[wi].num != null ? PASSAGES[wi].num : wi + 1) : '';
+      return `<div class="wrow" onclick="trk.jumpTo(${wi})">
+        <span class="dot" style="background:${col}"></span>
+        <span class="nm">${rank + 1}. ${esc(t)}</span>
+        <span class="ct" style="color:${col}">×${n}</span>
+        <span class="go">지문 ${esc(num)} →</span>
       </div>`;
     }).join('');
-    $('weakWrap').innerHTML = `<div class="sec-lbl">내 약점 (가장 많이 틀린 유형)</div>
-      <div class="weak-box"><div class="h">집중 보완 필요 Top ${top.length} <span style="font-weight:600;color:var(--muted);font-size:10.5px">— 누르면 어느 지문인지 보여요</span></div>
-      ${chips}</div>`;
+    $('weakWrap').innerHTML = `<div class="wrank">
+      <div class="h">내 약점 순위 (가장 많이 틀린 유형)</div>
+      <div class="sub">누르면 그 유형을 가장 많이 틀린 지문으로 이동해요</div>
+      ${rows}</div>`;
   }
 
   // ── 핸들러 (window.trk) ──
@@ -293,10 +354,12 @@
       const run = () => pushToServer(idx);
       if (immediate) run(); else saveTimers[idx] = setTimeout(run, 700);
     },
-    // 약점 칩 펼침 토글 (2개+ 지문)
-    weakToggle(t) {
-      weakOpen[t] = !weakOpen[t];
-      renderWeak();
+    // 드롭다운에서 지문 선택 → 이동 (선택값 초기화)
+    jumpSel(v) {
+      if (v === '' || v == null) return;
+      const idx = Number(v);
+      const sel = $('pjump'); if (sel) sel.value = '';
+      this.jumpTo(idx);
     },
     // 약점 → 지문 점프 (닫혀있으면 열고 스크롤, 열려있으면 스크롤만)
     jumpTo(idx) {
@@ -330,6 +393,7 @@
       if (!r.ok) throw new Error(r.error || '저장 실패');
       if (note) { note.textContent = '✓ 저장됨 ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }); note.style.color = 'var(--accent)'; }
       renderWeak();
+      renderHeatmap();
     } catch (e) {
       if (note) { note.textContent = '저장 실패 (네트워크) — 다시 시도하세요'; note.style.color = 'var(--danger)'; }
     }

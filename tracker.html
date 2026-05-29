@@ -98,6 +98,46 @@
   .foot b{color:var(--accent);}
   .state-msg{padding:40px 18px; text-align:center; color:var(--sub); font-size:13px; line-height:1.7;}
   .state-msg a{color:var(--accent); font-weight:700;}
+
+  /* ── ① D-day 금색 배너 ── */
+  .dday-banner{display:flex; gap:10px; padding:14px 14px 0;}
+  .dd-item{flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:11px 14px; display:flex; justify-content:space-between; align-items:center;}
+  .dd-item .dd-lbl{font-size:11px; color:var(--muted); font-weight:600;}
+  .dd-item .dd-date{font-size:14px; color:var(--txt); font-weight:700;}
+  .dd-item.big{background:linear-gradient(135deg,#fbbf24,#f59e0b); border-color:#fbbf24; box-shadow:0 2px 14px rgba(245,158,11,.3);}
+  .dd-item.big .dd-lbl{color:#0a0e1a;}
+  .dd-item.big .dd-num{font-size:22px; color:#0a0e1a; font-weight:800;}
+
+  /* ── ② 약점 순위 랭킹 ── */
+  .wrank{margin:14px 14px 0; background:var(--surface); border:1px solid var(--danger); border-radius:13px; padding:14px; box-shadow:0 0 14px var(--danger-dim);}
+  .wrank .h{font-size:12.5px; font-weight:800; color:var(--danger); margin-bottom:3px;}
+  .wrank .sub{font-size:10.5px; color:var(--muted); margin-bottom:6px;}
+  .wrow{display:flex; align-items:center; gap:9px; padding:8px 0; border-top:1px dashed var(--border); font-size:13px; cursor:pointer;}
+  .wrow:first-of-type{border-top:none;}
+  .wrow .dot{width:11px; height:11px; border-radius:50%; flex-shrink:0;}
+  .wrow .nm{flex:1; color:var(--txt); font-weight:600;}
+  .wrow .ct{font-weight:800; font-size:14px;}
+  .wrow .go{color:var(--muted); font-size:11px; flex-shrink:0;}
+
+  /* ── ③ 약점 히트맵 (지문×유형) ── */
+  .heat-sec{margin:14px;}
+  .heat-h{font-size:12.5px; font-weight:800; color:var(--txt); margin-bottom:8px;}
+  .heat-h small{font-weight:500; color:var(--muted); font-size:10.5px;}
+  .heat-wrap{overflow:auto; max-height:340px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:6px;}
+  .heat-tbl{border-collapse:separate; border-spacing:2px; table-layout:fixed;}
+  .heat-tbl th{font-size:9px; color:var(--accent); font-weight:700; writing-mode:vertical-lr; text-orientation:mixed; height:66px; vertical-align:middle; text-align:center; padding:3px 1px; background:var(--elevated); border-radius:4px; white-space:nowrap;}
+  .heat-tbl th.rl{writing-mode:horizontal-tb; height:auto; width:60px; text-align:left; padding:4px 6px; font-size:10px; color:var(--sub); background:var(--surface); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .heat-tbl td{padding:0; text-align:center;}
+  .hc{width:24px; height:20px; border-radius:3px; font-weight:700; font-size:10px; display:flex; align-items:center; justify-content:center; margin:0 auto;}
+  .heat-leg{display:flex; gap:9px; margin-top:8px; font-size:10px; color:var(--muted); justify-content:flex-end; flex-wrap:wrap;}
+  .heat-leg span{display:inline-flex; align-items:center; gap:3px;}
+  .heat-leg i{width:12px; height:12px; display:inline-block; border-radius:2px;}
+
+  /* ── 지문 바로가기 드롭다운 ── */
+  .pjump{padding:0 14px 4px;}
+  .pjump select{width:100%; background:var(--surface); color:var(--txt); border:1px solid var(--border); border-radius:10px; padding:11px 36px 11px 12px; font-size:13px; font-family:inherit; font-weight:600; -webkit-appearance:none; appearance:none; cursor:pointer; outline:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%2300ff88' d='M2 4l4 4 4-4z'/></svg>"); background-repeat:no-repeat; background-position:right 12px center;}
+  .pjump select:focus{border-color:var(--accent); box-shadow:0 0 10px var(--accent-dim);}
 </style>
 </head>
 <body>
@@ -131,10 +171,19 @@
     </div>
   </div>
 
+  <div class="dday-banner" id="ddayBanner" style="display:none;">
+    <div class="dd-item"><span class="dd-lbl">시험일</span><span class="dd-date" id="ddBigDate">—</span></div>
+    <div class="dd-item big"><span class="dd-lbl">D-day</span><span class="dd-num" id="ddBigNum">D-?</span></div>
+  </div>
+
   <div class="sec-lbl" id="secLbl" style="display:none;"></div>
+  <div class="pjump" id="pjumpWrap" style="display:none;">
+    <select id="pjump" onchange="trk.jumpSel(this.value)"></select>
+  </div>
   <div class="plist" id="plist"><div class="state-msg">불러오는 중…</div></div>
 
   <div id="weakWrap"></div>
+  <div id="heatWrap"></div>
 
   <div class="foot">
     입력한 내용은 선생님 대시보드와<br>부모님 페이지에 그대로 표시됩니다.<br>
