@@ -6,7 +6,15 @@
 
       if (wrapper) {
         const renderType = wrapper.dataset.questionType;
-        if (renderType === 'multi_select') {
+        if (renderType === 'binary_choice') {
+          // 괄호별 선택 단어 "① word ② word" 직렬화 (서버 binary_choice 채점 형식)
+          const parts = [];
+          wrapper.querySelectorAll('.binary-row').forEach((row) => {
+            const sel = row.querySelector('.bin-btn.active');
+            if (sel) parts.push(row.dataset.binNo + ' ' + sel.dataset.val);
+          });
+          student_answer = parts.join(' ');
+        } else if (renderType === 'multi_select') {
           const selected = [...wrapper.querySelectorAll('.ms-btn.active')].map((button) => button.dataset.val);
           const circleToNum = { '①':'1', '②':'2', '③':'3', '④':'4', '⑤':'5', '⑥':'6', '⑦':'7', '⑧':'8', '⑨':'9', '⑩':'10' };
           student_answer = question.type === '객관식'

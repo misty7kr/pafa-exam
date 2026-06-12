@@ -74,6 +74,10 @@
           const wrapper = document.querySelector(`[data-question-no="${q.question_no}"]`);
           if (!wrapper) return true;
           const renderType = wrapper.dataset.questionType;
+          if (renderType === 'binary_choice') {
+            const rows = [...wrapper.querySelectorAll('.binary-row')];
+            return rows.length === 0 || rows.some(r => !r.querySelector('.bin-btn.active'));
+          }
           if (renderType === 'multi_select') return !wrapper.querySelector('.ms-btn.active');
           if (q.type === '객관식') return !wrapper.querySelector('input[type="radio"]:checked');
           // 구조화 입력 체크

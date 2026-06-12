@@ -2,9 +2,11 @@ function parseExamQuestions(resultStr) {
   if (!resultStr || typeof resultStr !== 'string') return [];
   // TYPE 기반 객관식/주관식 분류 (CHOICES 유무에 의존하지 않음)
   const OBJ_TYPES = new Set(['요지·주장','함의추론','주제·제목',
+    '사례·의도','사례·적용','사례·적용(부정)',                 // 사례류 — 일반 5지선다 객관식
     '내용일치·불일치','내용일치·불일치(영)',  // 한국어판/영어판 둘 다
-    '어법','어휘','빈칸추론','흐름무관문장','문장순서','문장삽입','지칭추론',
-    '객관식요약빈칸','추론유형','추론유형(영)','연결사빈칸','학생반응','학생반응(영)']);
+    '어법','어휘','어휘(영영풀이)','빈칸추론','흐름무관문장','문장순서','문장삽입','지칭추론',  // 어휘(영영풀이) — 일반 5지선다
+    '객관식요약빈칸','추론유형','추론유형V2','추론유형(영)','연결사빈칸','학생반응','학생반응(영)',  // 추론유형V2 — 일반 5지선다
+    '어법(양자선택)','어휘(양자선택)']);  // 양자선택 조합형([CHOICES] 짝지은 것) — CHOICES 없으면 binary_choice가 우선
   // 지칭추론: 4:1 구조 객관식 단일정답 (①~⑤ 중 다른 대상 1개)
   const CIRCLED = ['①','②','③','④','⑤'];
   const blocks = resultStr.split(/(?=\[(?:Q|SQ):\d+\])/);
@@ -58,6 +60,12 @@ function parseExamQuestions(resultStr) {
       passage = combined || null;
     }
     const choicesMatch = trimmed.match(/\[CHOICES\]([\s\S]*?)\[\/CHOICES\]/);
+    // 양자선택(binary choice): 지문 괄호 ①[A / B] 택1 객관식 — TYPE 표기 또는 괄호 패턴으로 감지(서버와 동일)
+    const BIN_RE = /([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\[\]\/]+?)\s*\/\s*([^\[\]]+?)\]/g;
+    const binMatches = passage ? [...String(passage).matchAll(BIN_RE)] : [];
+    // [CHOICES]가 있으면 조합형("짝지은 것" 5지선다, [ANS:①] 단일) → 일반 객관식. 없을 때만 괄호별 택1.
+    const isBinary = !isSQ && !choicesMatch && (/\(양자선택\)/.test(qType) || binMatches.length >= 2);
+    const binary_choices = isBinary ? binMatches.map(bm => ({ no: bm[1], left: bm[2].trim(), right: bm[3].trim() })) : [];
     // TYPE 기반 판별 — TYPE 없으면 CHOICES 유무로 fallback
     // 어법이라도 "모두 고르고 고치시오" 형식(①~⑩)은 주관식
     const isSubjectiveGrammar = qType === '어법' &&
@@ -66,15 +74,16 @@ function parseExamQuestions(resultStr) {
     const isSubjectiveVocab = qType === '어휘' && ansMatch &&
       [...ansMatch[1]].filter(c => { const cp = c.codePointAt(0); return cp >= 0x2460 && cp <= 0x2469; }).length > 1;
     // SQ 블록은 항상 주관식
-    const isObj = isSQ ? false : (isSubjectiveGrammar ? false : (isSubjectiveVocab ? false : (qType ? OBJ_TYPES.has(qType) : !!choicesMatch)));
+    const isObj = (isSQ || isBinary) ? false : (isSubjectiveGrammar ? false : (isSubjectiveVocab ? false : (qType ? OBJ_TYPES.has(qType) : !!choicesMatch)));
     let options = [];
     if (choicesMatch && choicesMatch[1]) {
       options = choicesMatch[1].trim().split('\n')
         .map(l => l.replace(/^[①②③④⑤]\s*/, '').trim())
         .filter(l => l.length > 0);
     }
-    // CHOICES 없는 객관식(문장삽입 등): 기본 5지선다
-    if (isObj && options.length === 0) {
+    // CHOICES 없는 객관식(문장삽입 등) 또는 마커-한줄 선지("① ② ③ ④ ⑤"): 기본 5지선다
+    const markerOnly = options.length > 0 && options.every(o => /^[①②③④⑤\s]*$/.test(o));
+    if (isObj && (options.length === 0 || markerOnly)) {
       options = ['①', '②', '③', '④', '⑤'];
     }
     // SCORING 태그를 title 제거 전에 미리 추출
@@ -98,6 +107,12 @@ function parseExamQuestions(resultStr) {
       .replace(/\[SOURCE:[^\]]*\]/g, '')
       .replace(/\[ANS:[^\]]*\]/g, '')
       .replace(/\[EXPLAIN\][\s\S]*/g, '')
+      .replace(/\[JSON\][\s\S]*?\[\/JSON\]/g, '')      // 어법 엔진 메타 블록 — 발문 노출 차단
+      .replace(/\[BINARY\][\s\S]*?\[\/BINARY\]/g, '')  // 양자선택 데이터 블록
+      .replace(/\[DRAFT\][\s\S]*?\[\/DRAFT\]/g, '')    // 출제 초안 메모
+      .replace(/\[SETID:[^\]]*\]/g, '')                // 세트 렌더 힌트
+      .replace(/\[STYLE:[^\]]*\]/g, '')                // 발문 스타일 힌트
+      .replace(/\*\*/g, '')                            // 마크다운 강조 잔존
       .trim()
       .replace(/\n{2,}/g, '\n')
       .trim();
@@ -175,7 +190,7 @@ function parseExamQuestions(resultStr) {
         }
       }
     }
-    questions.push({ question_no, type: isObj ? '객관식' : '주관식', qtype: qType, title: finalTitle, given, passage, summary, condition, source, options: finalOptions, score: isObj ? 2 : 4, correct_answer, sub_answers, scoring_criteria, explain_text: explainText });
+    questions.push({ question_no, type: isBinary ? 'binary_choice' : (isObj ? '객관식' : '주관식'), qtype: qType, title: finalTitle, given, passage, summary, condition, source, options: finalOptions, score: isBinary ? 4 : (isObj ? 2 : 4), correct_answer, sub_answers, scoring_criteria, explain_text: explainText, binary_choices: isBinary ? binary_choices : undefined });
   }
   // ── 100점 만점 배분 (주관식 = 객관식 2배 가중치) ──
   if (questions.length > 0) {

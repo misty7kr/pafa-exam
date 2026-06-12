@@ -14,7 +14,15 @@
       const questionNo = String(element.dataset.questionNo);
       const type = element.dataset.questionType;
 
-      if (type === 'multi_select') {
+      if (type === 'binary_choice') {
+        // 괄호별 선택 단어를 "① word ② word" 형식으로 직렬화 (서버 채점 형식)
+        const parts = [];
+        element.querySelectorAll('.binary-row').forEach(row => {
+          const sel = row.querySelector('.bin-btn.active');
+          if (sel) parts.push(row.dataset.binNo + ' ' + sel.dataset.val);
+        });
+        answers[questionNo] = parts.join(' ');
+      } else if (type === 'multi_select') {
         const selected = [...element.querySelectorAll('.ms-btn.active')].map(b => b.dataset.val).join('');
         answers[questionNo] = selected;
       } else if (type === '객관식') {
@@ -49,7 +57,17 @@
       const type = element.dataset.questionType;
       const value = answers[questionNo] || '';
 
-      if (type === 'multi_select') {
+      if (type === 'binary_choice') {
+        // "① word ② word" → 번호별 단어 복원
+        const binMap = {};
+        const binRe = /([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*([^①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮]+)/g;
+        let bm;
+        while ((bm = binRe.exec(value)) !== null) binMap[bm[1]] = bm[2].trim();
+        element.querySelectorAll('.binary-row').forEach(row => {
+          const want = binMap[row.dataset.binNo] || '';
+          row.querySelectorAll('.bin-btn').forEach(b => b.classList.toggle('active', !!want && b.dataset.val === want));
+        });
+      } else if (type === 'multi_select') {
         element.querySelectorAll('.ms-btn').forEach(b => {
           b.classList.toggle('active', value.includes(b.dataset.val));
         });
@@ -95,8 +113,14 @@
   function renderPassageText(text, qtype) {
     const _blankQtypes = ['빈칸추론','객관식요약빈칸','연결사빈칸','요약빈칸'];
     let result = text
-      .replace(/\[BLANK\]/g, '<span class="blank"></span>')
-      .replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<span class="ref-word">$2</span>')
+      .replace(/\[BLANK\]/g, '<span class="blank"></span>');
+    if (qtype === 'binary_choice' || qtype === '어법(양자선택)' || qtype === '어휘(양자선택)') {
+      // 양자선택(괄호별 택1·조합형 모두): ①[A / B] 괄호를 지우지 않고 그대로 강조 (학생이 택1 대상을 봐야 함)
+      result = result.replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<strong class="bin-inline">[ $2 ]</strong>');
+    } else {
+      result = result.replace(/([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*\[([^\]]+)\]/g, '$1<span class="ref-word">$2</span>');
+    }
+    result = result
       .replace(/_{3,}/g, '<span class="blank"></span>');
     if (_blankQtypes.includes(qtype)) {
       result = result.replace(/\n{2,}/g, '\n').replace(/\n/g, '<br>');
@@ -132,6 +156,21 @@
       <div class="multi-select-btns">
         ${nums.map(c => `<button type="button" class="ms-btn" data-val="${c}" onclick="toggleMultiSelect(this,'${question.question_no}')">${c}</button>`).join('')}
       </div>
+    </div>`;
+  }
+
+  // 양자선택: 지문 괄호 ①[A / B]마다 두 단어 중 하나 선택 (괄호 수만큼 행, 전부 응답해야 완답)
+  function buildBinaryChoice(question) {
+    const list = Array.isArray(question.binary_choices) ? question.binary_choices : [];
+    if (!list.length) return `<div class="input-group"><label for="answer-${question.question_no}">답안 입력</label><textarea id="answer-${question.question_no}" placeholder="답을 입력하세요."></textarea></div>`;
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    return `<div class="binary-choice-group" data-qno="${question.question_no}">
+      <div style="font-size:11px;color:var(--muted,#888);margin-bottom:6px">각 괄호에서 알맞은 표현을 고르세요 (${list.length}개 모두 선택)</div>
+      ${list.map(c => `<div class="binary-row" data-bin-no="${c.no}" style="display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap;">
+        <span style="min-width:22px;font-weight:700;">${c.no}</span>
+        <button type="button" class="ms-btn bin-btn" data-val="${esc(c.left)}" onclick="binarySelect(this,'${question.question_no}')">${esc(c.left)}</button>
+        <button type="button" class="ms-btn bin-btn" data-val="${esc(c.right)}" onclick="binarySelect(this,'${question.question_no}')">${esc(c.right)}</button>
+      </div>`).join('')}
     </div>`;
   }
 
@@ -408,7 +447,9 @@
       .map(
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
-          const renderType = (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select' : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
+          const renderType = question.type === 'binary_choice' ? 'binary_choice'
+            : (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select'
+            : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
             <div class="question-header">
@@ -422,11 +463,13 @@
               </div>
             </div>
             ${question.given ? `<div class="given-box">${renderPassageText(question.given, question.qtype||question.type)}</div>` : ''}
-            ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage, question.qtype||question.type)}</div>` : ''}
+            ${question.passage ? `<div class="passage-box">${renderPassageText(question.passage, renderType === 'binary_choice' ? 'binary_choice' : (question.qtype||question.type))}</div>` : ''}
             ${question.summary ? `<div class="summary-box">${renderPassageText(question.summary)}</div>` : ''}
             ${question.condition ? `<div class="condition-box">${renderPassageText(question.condition)}</div>` : ''}
             ${
-              renderType === 'multi_select'
+              renderType === 'binary_choice'
+                ? buildBinaryChoice(question)
+                : renderType === 'multi_select'
                 ? buildMultiSelect(question)
                 : renderType === '객관식'
                 ? `<div class="choice-list">${['어법', '어휘'].includes(question.qtype) ? buildNumberedSingleSelect(question) : buildChoices(question)}</div>`
@@ -573,8 +616,25 @@
       const qno = q.question_no;
       const forceSubj = isSubjectiveOverride(q);
       const forceObjOMR = !forceSubj && ['어법', '어휘'].includes(q.qtype);
-      const type = (q.type === 'multi_select' || MULTI_QTYPES.has(q.qtype)) ? 'multi_select'
+      const type = q.type === 'binary_choice' ? 'binary_choice'
+        : (q.type === 'multi_select' || MULTI_QTYPES.has(q.qtype)) ? 'multi_select'
         : (((q.type === '객관식' || forceObjOMR) && !forceSubj) ? '객관식' : '주관식');
+
+      if (type === 'binary_choice') {
+        // 양자선택: 괄호 수만큼 행, 각 행에서 두 단어 중 택1
+        const list = Array.isArray(q.binary_choices) ? q.binary_choices : [];
+        const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        return `<div class="omr-row" data-omr-qno="${qno}" data-omr-type="binary_choice">
+          <span class="omr-qno">${qno}</span>
+          <div class="omr-choices" style="flex-direction:column;align-items:flex-start;gap:2px;">
+            ${list.map(c => `<div class="omr-bin-row" data-bin-no="${c.no}" style="display:flex;gap:4px;align-items:center;">
+              <span style="font-size:11px;min-width:16px;">${c.no}</span>
+              <button type="button" class="omr-btn" style="min-width:0;padding:2px 6px;font-size:11px;" data-val="${esc(c.left)}" onclick="omrBinarySelect(this,'${qno}')">${esc(c.left)}</button>
+              <button type="button" class="omr-btn" style="min-width:0;padding:2px 6px;font-size:11px;" data-val="${esc(c.right)}" onclick="omrBinarySelect(this,'${qno}')">${esc(c.right)}</button>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }
 
       if (type === '객관식') {
         const circles = ['어법', '어휘'].includes(q.qtype) ? OBJ_CIRCLES_10 : OBJ_CIRCLES_5;
@@ -619,7 +679,16 @@
       const type = row.dataset.omrType;
       const val = answers[qno] || '';
 
-      if (type === '객관식') {
+      if (type === 'binary_choice') {
+        const binMap = {};
+        const binRe = /([①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮])\s*([^①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮]+)/g;
+        let bm;
+        while ((bm = binRe.exec(val)) !== null) binMap[bm[1]] = bm[2].trim();
+        row.querySelectorAll('.omr-bin-row').forEach(br => {
+          const want = binMap[br.dataset.binNo] || '';
+          br.querySelectorAll('.omr-btn').forEach(b => b.classList.toggle('active', !!want && b.dataset.val === want));
+        });
+      } else if (type === '객관식') {
         row.querySelectorAll('.omr-btn').forEach(b => {
           b.classList.toggle('active', b.dataset.val === val);
         });
@@ -695,6 +764,26 @@
   window.omrTextInput = omrTextInput;
   window.omrClear = omrClear;
   window.toggleOMRCard = toggleOMRCard;
+
+  // 양자선택 본문 버튼: 행당 하나만 active + OMR 동기화는 saveAnswers→updateOMR이 수행
+  function binarySelect(btn, qno) {
+    const row = btn.closest('.binary-row');
+    if (row) row.querySelectorAll('.bin-btn').forEach(b => b.classList.toggle('active', b === btn));
+    saveAnswers();
+  }
+  // 양자선택 OMR 버튼: 같은 괄호 행에서 택1 + 본문 동기화 후 저장
+  function omrBinarySelect(btn, qno) {
+    const br = btn.closest('.omr-bin-row');
+    if (br) br.querySelectorAll('.omr-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const questionEl = document.querySelector(`[data-question-no="${qno}"]`);
+    if (questionEl && br) {
+      const bodyRow = [...questionEl.querySelectorAll('.binary-row')].find(r => r.dataset.binNo === br.dataset.binNo);
+      if (bodyRow) bodyRow.querySelectorAll('.bin-btn').forEach(b => b.classList.toggle('active', b.dataset.val === btn.dataset.val));
+    }
+    saveAnswers();
+  }
+  window.binarySelect = binarySelect;
+  window.omrBinarySelect = omrBinarySelect;
 
   function singleSelect(btn, qno) {
     const group = btn.closest('.single-select-group');
