@@ -4,7 +4,7 @@ function parseExamQuestions(resultStr) {
   const OBJ_TYPES = new Set(['요지·주장','함의추론','주제·제목',
     '사례·의도','사례·적용','사례·적용(부정)',                 // 사례류 — 일반 5지선다 객관식
     '내용일치·불일치','내용일치·불일치(영)',  // 한국어판/영어판 둘 다
-    '어법','어휘','어휘(영영풀이)','빈칸추론','흐름무관문장','문장순서','문장삽입','지칭추론',  // 어휘(영영풀이) — 일반 5지선다
+    '어법','어휘','어휘(영영풀이)','문법객관식','어휘객관식','빈칸추론','흐름무관문장','문장순서','문장삽입','지칭추론',  // 어휘(영영풀이) — 일반 5지선다
     '객관식요약빈칸','추론유형','추론유형V2','추론유형(영)','연결사빈칸','학생반응','학생반응(영)',  // 추론유형V2 — 일반 5지선다
     '어법(양자선택)','어휘(양자선택)']);  // 양자선택 조합형([CHOICES] 짝지은 것) — CHOICES 없으면 binary_choice가 우선
   // 지칭추론: 4:1 구조 객관식 단일정답 (①~⑤ 중 다른 대상 1개)
@@ -71,7 +71,7 @@ function parseExamQuestions(resultStr) {
     const isSubjectiveGrammar = qType === '어법' &&
       (trimmed.includes('모두 고르') || trimmed.includes('고치시오') || trimmed.includes('⑥') || trimmed.includes('⑦'));
     // 어휘복수: ANS에 원문자(①-⑩)가 2개 이상이면 주관식
-    const isSubjectiveVocab = qType === '어휘' && ansMatch &&
+    const isSubjectiveVocab = (qType === '어휘' || qType === '어휘(영영풀이)') && ansMatch &&
       [...ansMatch[1]].filter(c => { const cp = c.codePointAt(0); return cp >= 0x2460 && cp <= 0x2469; }).length > 1;
     // SQ 블록은 항상 주관식
     const isObj = (isSQ || isBinary) ? false : (isSubjectiveGrammar ? false : (isSubjectiveVocab ? false : (qType ? OBJ_TYPES.has(qType) : !!choicesMatch)));

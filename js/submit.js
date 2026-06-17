@@ -17,7 +17,9 @@
         } else if (renderType === 'multi_select') {
           const selected = [...wrapper.querySelectorAll('.ms-btn.active')].map((button) => button.dataset.val);
           const circleToNum = { '①':'1', '②':'2', '③':'3', '④':'4', '⑤':'5', '⑥':'6', '⑦':'7', '⑧':'8', '⑨':'9', '⑩':'10' };
-          student_answer = question.type === '객관식'
+          const correctRaw = String(question.correct_answer || '');
+          const expectsNumeric = question.type === '객관식' && !/[①②③④⑤⑥⑦⑧⑨⑩]/.test(correctRaw);
+          student_answer = expectsNumeric
             ? selected.map((value) => circleToNum[value] || value).join(' ')
             : selected.join('');
         } else if (question.type === '객관식') {

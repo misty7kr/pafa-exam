@@ -236,6 +236,27 @@
   const SUMMARY_QTYPES = ['요약 빈칸', '요약빈칸', '글의 요약 빈칸'];
   const AB_QTYPES = ['한영 영작', '한영영작'];
 
+  function hasMultipleCircledAnswer(question) {
+    const raw = String(question.correct_answer || question.answer || question.ans || '');
+    const circled = raw.match(/[①②③④⑤⑥⑦⑧⑨⑩]/g) || [];
+    if (circled.length > 1) return true;
+    const numeric = raw.trim().split(/[\s,\/]+/).filter(x => /^(?:10|[1-9])$/.test(x));
+    return numeric.length > 1;
+  }
+
+  function asksForMultipleSelection(question) {
+    const text = [question.title, question.question, question.condition, question.qtype]
+      .filter(Boolean).join(' ');
+    return /모두\s*고르|다\s*고르|복수|해당하는\s*것/.test(text);
+  }
+
+  function isMultiSelectQuestion(question) {
+    if (!question) return false;
+    if (question.type === 'multi_select') return true;
+    if (MULTI_QTYPES.has(question.qtype)) return true;
+    return hasMultipleCircledAnswer(question) || asksForMultipleSelection(question);
+  }
+
   function detectCircledNumbers(question) {
     const allText = [question.title, question.passage, question.given, question.condition]
       .filter(Boolean).join(' ');
@@ -448,7 +469,7 @@
         (question) => {
           const forceSubjective = isSubjectiveOverride(question);
           const renderType = question.type === 'binary_choice' ? 'binary_choice'
-            : (question.type === 'multi_select' || MULTI_QTYPES.has(question.qtype)) ? 'multi_select'
+            : isMultiSelectQuestion(question) ? 'multi_select'
             : ((question.type === '객관식' && !forceSubjective) ? '객관식' : '주관식');
           return `
           <section class="question-card" id="question-${question.question_no}" data-question-no="${question.question_no}" data-question-type="${renderType}">
@@ -617,7 +638,7 @@
       const forceSubj = isSubjectiveOverride(q);
       const forceObjOMR = !forceSubj && ['어법', '어휘'].includes(q.qtype);
       const type = q.type === 'binary_choice' ? 'binary_choice'
-        : (q.type === 'multi_select' || MULTI_QTYPES.has(q.qtype)) ? 'multi_select'
+        : isMultiSelectQuestion(q) ? 'multi_select'
         : (((q.type === '객관식' || forceObjOMR) && !forceSubj) ? '객관식' : '주관식');
 
       if (type === 'binary_choice') {
