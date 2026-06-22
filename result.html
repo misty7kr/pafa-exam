@@ -75,8 +75,11 @@
 
       document.getElementById('result-student').textContent = `${result.student_name || ''} 학생`;
       document.getElementById('result-title').textContent = parseExamTitle(result.exam_title) || '시험';
+      const gradingNow = result.writing_status === 'grading';
       document.getElementById('result-score').textContent = `${percentage} / 100`;
-      document.getElementById('result-rate-label').textContent = `정답률 ${percentage}%`;
+      document.getElementById('result-rate-label').textContent = gradingNow
+        ? '✍ 서술형 채점 중 — 최종 점수는 채점 완료 후 확정됩니다'
+        : `정답률 ${percentage}%`;
       setTimeout(() => {
         document.getElementById('result-progress').style.width = `${percentage}%`;
       }, 100);
@@ -95,20 +98,34 @@
       }
       document.getElementById('result-table-body').innerHTML = (result.responses || [])
         .map((item) => {
+          const detailId = `detail-${item.question_no}`;
+          // 서술형 채점 대기 — 점수·정답·해설 미공개("채점 중")
+          if (item.grade_status === 'pending') {
+            return `
+            <tr>
+              <td>${item.question_no}</td>
+              <td>${escHtml(item.answer) || '-'}</td>
+              <td style="color:var(--muted,#999)">—</td>
+              <td style="color:var(--muted,#999);font-weight:600">✍ 채점 중<span style="font-weight:400">/${item.max_score ?? ''}</span></td>
+            </tr>`;
+          }
           const wrong = item.score < item.max_score;
           const hasFeedback = item.feedback && item.feedback.trim();
           const hasExplain  = item.explain_text && item.explain_text.trim();
-          const detailId = `detail-${item.question_no}`;
-          // 해설/피드백 행 (오답이거나 피드백 있을 때만)
-          const extraRow = (wrong && (hasFeedback || hasExplain)) ? `
+          // 서술형 루브릭 항목별 채점 결과
+          const detailList = Array.isArray(item.grade_detail) ? item.grade_detail : [];
+          const detailHtml = detailList.length ? `<div style="margin-bottom:6px"><strong style="color:var(--primary,#1a3a6b)">항목별 채점:</strong><br>${detailList.map(d=>`· ${escHtml(d.label)}: ${d.score}/${d.max}${d.reason?` — ${escHtml(d.reason)}`:''}`).join('<br>')}</div>` : '';
+          const showExtra = (wrong && (hasFeedback || hasExplain)) || detailList.length > 0;
+          const extraRow = showExtra ? `
             <tr id="${detailId}" style="display:none;background:var(--card-bg,#f8f9fb)">
               <td colspan="4" style="padding:10px 14px;font-size:12px;color:var(--text,#333);line-height:1.6;border-top:1px dashed var(--border,#e0e0e0)">
+                ${detailHtml}
                 ${hasFeedback ? `<div style="margin-bottom:6px"><strong style="color:var(--primary,#1a3a6b)">채점 피드백:</strong> ${escHtml(item.feedback)}</div>` : ''}
                 ${hasExplain  ? `<div><strong style="color:var(--primary,#1a3a6b)">해설:</strong><br><span style="white-space:pre-wrap">${escHtml(item.explain_text)}</span></div>` : ''}
               </td>
             </tr>` : '';
-          const toggleBtn = (wrong && (hasFeedback || hasExplain))
-            ? `<button onclick="var r=document.getElementById('${detailId}');r.style.display=r.style.display==='none'?'table-row':'none'" style="font-size:10px;padding:1px 7px;border:1px solid #ccc;border-radius:4px;background:transparent;cursor:pointer;margin-left:6px">해설</button>`
+          const toggleBtn = showExtra
+            ? `<button onclick="var r=document.getElementById('${detailId}');r.style.display=r.style.display==='none'?'table-row':'none'" style="font-size:10px;padding:1px 7px;border:1px solid #ccc;border-radius:4px;background:transparent;cursor:pointer;margin-left:6px">상세</button>`
             : '';
           return `
             <tr>
