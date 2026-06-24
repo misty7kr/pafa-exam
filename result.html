@@ -58,7 +58,6 @@
       if (!storedResult) { window.location.href = 'index.html'; return; }
 
       const result = JSON.parse(storedResult);
-      const percentage = result.max_score ? Math.round((result.total_score / result.max_score) * 100) : 0;
 
       function parseExamTitle(raw) {
         if (!raw) return raw;
@@ -73,13 +72,71 @@
           .trim();
       }
 
+      function fmtScore(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '0';
+        const rounded = Math.round(n * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.0$/, '');
+      }
+
+      function isSubjectiveResponse(item) {
+        if (item.question_type === '주관식' || item.type === '주관식') return true;
+        const qtype = String(item.qtype || '');
+        return !qtype.includes('객관식') && /(서술|주관|영작|단답)/.test(qtype);
+      }
+
+      function normalizeBreakdown(raw) {
+        const sb = raw.score_breakdown || {};
+        const make = (part, scoreKey, maxKey) => ({
+          score: Number(part?.score ?? sb[scoreKey] ?? 0) || 0,
+          max_score: Number(part?.max_score ?? sb[maxKey] ?? 0) || 0,
+          pending_count: Number(part?.pending_count ?? 0) || 0,
+        });
+        let objective = make(sb.objective, 'objective_score', 'objective_max_score');
+        let subjective = make(sb.subjective, 'subjective_score', 'subjective_max_score');
+        let total = make(sb.total, 'raw_score', 'raw_max_score');
+        subjective.pending_count = Number(sb.subjective_pending_count ?? subjective.pending_count ?? 0) || 0;
+
+        if (!total.max_score && Array.isArray(raw.responses)) {
+          objective = { score: 0, max_score: 0, pending_count: 0 };
+          subjective = { score: 0, max_score: 0, pending_count: 0 };
+          raw.responses.forEach(item => {
+            const target = isSubjectiveResponse(item) ? subjective : objective;
+            target.score += item.score == null ? 0 : (Number(item.score) || 0);
+            target.max_score += Number(item.max_score) || 0;
+            if (item.grade_status === 'pending' || item.score == null) target.pending_count += 1;
+          });
+          total = {
+            score: objective.score + subjective.score,
+            max_score: objective.max_score + subjective.max_score,
+            pending_count: objective.pending_count + subjective.pending_count,
+          };
+        }
+        return { total, objective, subjective };
+      }
+
+      function partText(label, part) {
+        if (!part || !part.max_score) return '';
+        const pending = part.pending_count ? ` · ${part.pending_count}개 채점 중` : '';
+        return `${label} ${fmtScore(part.score)}/${fmtScore(part.max_score)}점${pending}`;
+      }
+
+      const breakdown = normalizeBreakdown(result);
+      const percentage = result.max_score ? Math.round((result.total_score / result.max_score) * 100) : (breakdown.total.max_score ? Math.round(breakdown.total.score / breakdown.total.max_score * 100) : 0);
+      const breakdownLabel = [
+        partText('객관식', breakdown.objective),
+        partText('서술형', breakdown.subjective),
+      ].filter(Boolean).join(' · ');
+
       document.getElementById('result-student').textContent = `${result.student_name || ''} 학생`;
       document.getElementById('result-title').textContent = parseExamTitle(result.exam_title) || '시험';
       const gradingNow = result.writing_status === 'grading';
-      document.getElementById('result-score').textContent = `${percentage} / 100`;
+      document.getElementById('result-score').textContent = breakdown.total.max_score
+        ? `${fmtScore(breakdown.total.score)} / ${fmtScore(breakdown.total.max_score)}점`
+        : `${percentage} / 100점`;
       document.getElementById('result-rate-label').textContent = gradingNow
-        ? '✍ 서술형 채점 중 — 최종 점수는 채점 완료 후 확정됩니다'
-        : `정답률 ${percentage}%`;
+        ? `${breakdownLabel || '서술형 채점 중'} · 최종 점수는 채점 완료 후 확정됩니다`
+        : (breakdownLabel || `환산 점수 ${percentage}/100점`);
       setTimeout(() => {
         document.getElementById('result-progress').style.width = `${percentage}%`;
       }, 100);

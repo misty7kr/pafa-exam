@@ -53,6 +53,8 @@
       exam_title: examState.title || '',
       total_score: result.total_score || 0,
       max_score: result.max_score || 0,
+      writing_status: result.writing_status || 'done',
+      score_breakdown: result.score_breakdown || null,
       responses: result.responses || [],
     });
     localStorage.setItem('pafa_result', resultData);
