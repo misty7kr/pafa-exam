@@ -16,13 +16,13 @@
           <p class="page-subtitle" id="student-label"></p>
         </div>
       </div>
-      <div id="timer-display" class="timer">60:00</div>
+      <div id="timer-display" class="timer">--:--</div>
       <a href="tracker.html" style="font-size:11px;padding:4px 10px;border:1px solid var(--gold);border-radius:6px;background:transparent;color:var(--gold);font-weight:600">1등급 측정기</a>
       <button type="button" onclick="if(confirm('로그아웃하시겠습니까?')){localStorage.removeItem('pafa_student');sessionStorage.removeItem('pafa_student');location.href='index.html';}" style="font-size:11px;padding:4px 10px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#888;cursor:pointer">로그아웃</button>
     </header>
 
     <section class="card">
-      <div class="status-banner">시험을 선택하면 50분 타이머가 즉시 시작됩니다.</div>
+      <div class="status-banner">시험을 선택하면 서버 기준 남은 시간으로 타이머가 시작됩니다.</div>
       <div id="exam-list"></div>
     </section>
 
@@ -112,6 +112,9 @@
         hasSubmitted = true;
         submitButton.disabled = true;
         try {
+          if (typeof window.examApp?.flushProgress === 'function') {
+            await window.examApp.flushProgress();
+          }
           await window.submitExam(currentAttemptId, currentQuestions);
         } catch (error) {
           hasSubmitted = false;
@@ -134,14 +137,14 @@
         currentQuestions = attemptData.questions;
         hasSubmitted = false;
 
-        // 같은 시험 재접속이면 기존 답안 유지 (다른 시험이거나 처음 시작일 때만 초기화)
+        // 같은 시험 재접속이면 기존 legacy 답안을 attempt별 키로 마이그레이션
+        let allowLegacyAnswers = false;
         try {
           const prev = JSON.parse(localStorage.getItem('pafa_current_exam') || '{}');
-          if (String(prev.exam_id) !== String(exam.id)) {
-            localStorage.setItem('pafa_answers', JSON.stringify({}));
-          }
-        } catch(_) {
-          localStorage.setItem('pafa_answers', JSON.stringify({}));
+          allowLegacyAnswers = String(prev.exam_id) === String(exam.id);
+        } catch(_) {}
+        if (typeof window.examApp?.setAttemptContext === 'function') {
+          window.examApp.setAttemptContext(attempt.attempt_id, attemptData.progress_answers, { allowLegacyAnswers });
         }
         localStorage.setItem('pafa_current_exam', JSON.stringify({ exam_id: exam.id, title: exam.title }));
 
@@ -149,10 +152,12 @@
         window.examApp.renderQuestions(currentQuestions); // 내부에서 loadAnswers() 호출 → 답안 복원
         submitButton.disabled = false;
 
-        // started_at 기준으로 남은 시간 계산 (화면 꺼짐/재접속 후 정확한 시간 유지)
+        // 서버 계산 remaining_sec 우선, 없을 때만 기존 started_at fallback
         const EXAM_DURATION = 60 * 60;
-        let remainingSec = EXAM_DURATION;
-        if (attemptData.started_at) {
+        let remainingSec = Number.isFinite(Number(attemptData.remaining_sec))
+          ? Number(attemptData.remaining_sec)
+          : EXAM_DURATION;
+        if (!Number.isFinite(Number(attemptData.remaining_sec)) && attemptData.started_at) {
           const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
           remainingSec = Math.max(0, EXAM_DURATION - elapsed);
         }
@@ -163,7 +168,7 @@
         stopTimer = window.examApp.startTimer(remainingSec, () => handleSubmit(true));
       }
 
-      submitButton.addEventListener('click', handleSubmit);
+      submitButton.addEventListener('click', () => handleSubmit(false));
 
       window.api.apiGet('/student/exams', { student_id: student.student_id })
         .then((exams) => {

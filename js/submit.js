@@ -59,8 +59,10 @@
     });
     localStorage.setItem('pafa_result', resultData);
     sessionStorage.setItem('pafa_result', resultData);
+    localStorage.removeItem(`pafa_answers_${attempt_id}`);
     localStorage.removeItem('pafa_answers');
     localStorage.removeItem('pafa_current_exam');
+    sessionStorage.removeItem(`pafa_answers_${attempt_id}`);
     sessionStorage.removeItem('pafa_answers');
     sessionStorage.removeItem('pafa_current_exam');
     window.location.href = 'result.html';

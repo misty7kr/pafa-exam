@@ -1,10 +1,177 @@
 (function () {
-  function getStoredAnswers() {
+  let activeAttemptId = '';
+  let initialProgressAnswers = null;
+  let hasInitialProgressAnswers = false;
+  let debounceTimer = null;
+  let retryTimer = null;
+  let retryCount = 0;
+  let progressPromise = null;
+  let pendingProgressAnswers = null;
+
+  const LEGACY_ANSWERS_KEY = 'pafa_answers';
+  const MAX_PROGRESS_RETRIES = 6;
+  const PROGRESS_DEBOUNCE_MS = 2000;
+
+  function getAnswerStorageKey() {
+    return activeAttemptId ? `pafa_answers_${activeAttemptId}` : LEGACY_ANSWERS_KEY;
+  }
+
+  function parseStoredJson(value) {
     try {
-      return JSON.parse(localStorage.getItem('pafa_answers') || sessionStorage.getItem('pafa_answers') || '{}');
+      return JSON.parse(value || '{}') || {};
     } catch (error) {
       return {};
     }
+  }
+
+  function getStoredAnswers() {
+    const key = getAnswerStorageKey();
+    return parseStoredJson(localStorage.getItem(key) || sessionStorage.getItem(key) || '{}');
+  }
+
+  function setStoredAnswers(answers) {
+    const key = getAnswerStorageKey();
+    localStorage.setItem(key, JSON.stringify(answers || {}));
+  }
+
+  function progressListToMap(progressAnswers) {
+    const map = {};
+    if (!Array.isArray(progressAnswers)) return map;
+    progressAnswers.forEach((answer) => {
+      if (!answer || answer.question_no === undefined || answer.question_no === null) return;
+      map[String(answer.question_no)] = answer.student_answer === undefined || answer.student_answer === null
+        ? ''
+        : String(answer.student_answer);
+    });
+    return map;
+  }
+
+  function answersMapToProgressList(answers) {
+    return Object.keys(answers || {}).map((questionNo) => ({
+      question_no: Number.isNaN(Number(questionNo)) ? questionNo : Number(questionNo),
+      student_answer: answers[questionNo] || '',
+    }));
+  }
+
+  function hasAnyAnswer(answers) {
+    return Object.keys(answers || {}).some((key) => Boolean(answers[key]));
+  }
+
+  function ensureSyncStatus() {
+    let el = document.getElementById('progress-sync-status');
+    if (el) return el;
+    const questionSection = document.getElementById('question-section');
+    if (!questionSection) return null;
+    el = document.createElement('div');
+    el.id = 'progress-sync-status';
+    el.style.display = 'none';
+    el.style.margin = '0 0 12px';
+    el.style.padding = '10px 12px';
+    el.style.border = '1px solid #e53e3e';
+    el.style.borderRadius = '8px';
+    el.style.background = '#fff5f5';
+    el.style.color = '#c53030';
+    el.style.fontSize = '13px';
+    el.style.fontWeight = '700';
+    questionSection.insertBefore(el, questionSection.firstChild);
+    return el;
+  }
+
+  function showSyncWarning(message) {
+    const el = ensureSyncStatus();
+    if (!el) return;
+    el.textContent = message || '동기화 안 됨';
+    el.style.display = 'block';
+  }
+
+  function clearSyncWarning() {
+    const el = document.getElementById('progress-sync-status');
+    if (el) el.style.display = 'none';
+  }
+
+  function migrateLegacyAnswers(options) {
+    if (!activeAttemptId || options?.allowLegacyAnswers === false) return;
+    const key = getAnswerStorageKey();
+    const current = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (current) return;
+
+    const legacy = localStorage.getItem(LEGACY_ANSWERS_KEY) || sessionStorage.getItem(LEGACY_ANSWERS_KEY);
+    if (!legacy) return;
+
+    localStorage.setItem(key, legacy);
+    window.setTimeout(() => {
+      localStorage.removeItem(LEGACY_ANSWERS_KEY);
+      sessionStorage.removeItem(LEGACY_ANSWERS_KEY);
+    }, 5000);
+  }
+
+  function setAttemptContext(attemptId, progressAnswers, options) {
+    activeAttemptId = attemptId ? String(attemptId) : '';
+    initialProgressAnswers = progressListToMap(progressAnswers);
+    hasInitialProgressAnswers = Array.isArray(progressAnswers) && progressAnswers.length > 0;
+    pendingProgressAnswers = null;
+    retryCount = 0;
+    window.clearTimeout(debounceTimer);
+    window.clearTimeout(retryTimer);
+    clearSyncWarning();
+    migrateLegacyAnswers(options || {});
+    if (hasInitialProgressAnswers) {
+      setStoredAnswers(initialProgressAnswers);
+    }
+  }
+
+  async function postProgress(answers, retryOnFail) {
+    if (!activeAttemptId || !window.api || typeof window.api.apiPost !== 'function') return true;
+    if (progressPromise) {
+      try { await progressPromise; } catch (_) {}
+    }
+
+    pendingProgressAnswers = answers;
+    progressPromise = window.api.apiPost(`/student/attempts/${activeAttemptId}/progress`, {
+      answers: answersMapToProgressList(answers),
+    });
+
+    try {
+      await progressPromise;
+      pendingProgressAnswers = null;
+      retryCount = 0;
+      clearSyncWarning();
+      return true;
+    } catch (error) {
+      showSyncWarning('동기화 안 됨 — 네트워크가 복구되면 자동으로 다시 저장합니다.');
+      if (retryOnFail) scheduleProgressRetry();
+      return false;
+    } finally {
+      progressPromise = null;
+    }
+  }
+
+  function scheduleProgressRetry() {
+    window.clearTimeout(retryTimer);
+    if (retryCount >= MAX_PROGRESS_RETRIES) return;
+    const delay = Math.min(2000 * Math.pow(2, retryCount), 60000);
+    retryCount += 1;
+    retryTimer = window.setTimeout(() => {
+      postProgress(pendingProgressAnswers || getStoredAnswers(), true);
+    }, delay);
+  }
+
+  function queueProgressSave(answers) {
+    if (!activeAttemptId) return;
+    pendingProgressAnswers = answers;
+    retryCount = 0;
+    window.clearTimeout(debounceTimer);
+    window.clearTimeout(retryTimer);
+    debounceTimer = window.setTimeout(() => {
+      postProgress(pendingProgressAnswers || getStoredAnswers(), true);
+    }, PROGRESS_DEBOUNCE_MS);
+  }
+
+  async function flushProgress() {
+    window.clearTimeout(debounceTimer);
+    window.clearTimeout(retryTimer);
+    const answers = getStoredAnswers();
+    await postProgress(answers, true);
   }
 
   function saveAnswers() {
@@ -44,13 +211,19 @@
       }
     });
 
-    localStorage.setItem('pafa_answers', JSON.stringify(answers));
+    setStoredAnswers(answers);
+    queueProgressSave(answers);
     updateAnswerSheet();
     updateOMR();
   }
 
   function loadAnswers() {
-    const answers = getStoredAnswers();
+    const answers = hasInitialProgressAnswers ? initialProgressAnswers : getStoredAnswers();
+    if (hasInitialProgressAnswers) {
+      setStoredAnswers(initialProgressAnswers);
+      initialProgressAnswers = null;
+      hasInitialProgressAnswers = false;
+    }
 
     document.querySelectorAll('[data-question-no]').forEach((element) => {
       const questionNo = String(element.dataset.questionNo);
@@ -831,6 +1004,8 @@
     startTimer,
     saveAnswers,
     loadAnswers,
+    setAttemptContext,
+    flushProgress,
     collectStructuredAnswer,
   };
 })();
