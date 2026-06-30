@@ -12,6 +12,10 @@
   const OBJ = ['대의파악', '함의추론', '일치불일치', '어법', '어휘', '빈칸추론', '흐름무관', '문장순서', '문장삽입', '요약빈칸', '추론', '연결사', '지칭추론', '학생반응'];
   const WRT = ['요약빈칸영작', '주제/요지영작', '빈칸영작', '한영영작', '복합지문영작'];
   const TYPES = [...OBJ, ...WRT];
+  // 표시용 유형 집합 = 수동 19종 ∪ 동형 자동약점 유형(패파리그3 canonical). 자동약점 로드 시 확장.
+  let ALL_TYPES = [...TYPES];
+  // 약점 표시값 = 수동 입력 + 동형 자동(별도 보관, 저장 안 됨) 합산. 저장은 c.counters만.
+  const wcount = (c, t) => (c.counters[t] || 0) + ((c.autoCounters && c.autoCounters[t]) || 0);
   const CIRC = 226; // 2π·36 (도넛)
 
   let STUDENT = null, SCOPE = null, PASSAGES = [];
@@ -31,7 +35,7 @@
   function blankCard() {
     const sliders = {}; SLIDERS.forEach(s => sliders[s] = 0);
     const counters = {}; TYPES.forEach(t => counters[t] = 0);
-    return { sliders, counters, done: [], reinforce: false };
+    return { sliders, counters, autoCounters: {}, done: [], reinforce: false };
   }
   function getCard(idx) { if (!state[idx]) state[idx] = blankCard(); return state[idx]; }
 
@@ -99,6 +103,17 @@
         c.done = parse(pr.done_types, []) || [];
         c.reinforce = !!pr.watched_reinforce;
         state[idx] = c;
+      });
+      // 동형 자동 약점 병합 (별도 보관 — 저장 안 됨, 표시 시에만 합산)
+      (tr.auto_weakness || []).forEach(aw => {
+        const idx = PASSAGES.findIndex(p => p.id === aw.scope_passage_id);
+        if (idx < 0) return;
+        const c = getCard(idx);
+        const wj = parse(aw.weak_json, {});
+        for (const [t, n] of Object.entries(wj)) {
+          c.autoCounters[t] = (c.autoCounters[t] || 0) + (Number(n) || 0);
+          if (!ALL_TYPES.includes(t)) ALL_TYPES.push(t);
+        }
       });
       $('heroWrap').style.display = '';
       $('secLbl').style.display = '';
@@ -202,22 +217,22 @@
   function renderHeatmap() {
     const wrap = $('heatWrap'); if (!wrap) return;
     // 유형별 총합 (열) + 지문별 총합 (행) 으로 0 제거
-    const colTotal = {}; TYPES.forEach(t => colTotal[t] = 0);
+    const colTotal = {}; ALL_TYPES.forEach(t => colTotal[t] = 0);
     const rowsIdx = [];
     PASSAGES.forEach((_, i) => {
       const c = getCard(i);
       let rowSum = 0;
-      TYPES.forEach(t => { const n = c.counters[t] || 0; colTotal[t] += n; rowSum += n; });
+      ALL_TYPES.forEach(t => { const n = wcount(c, t); colTotal[t] += n; rowSum += n; });
       if (rowSum > 0) rowsIdx.push(i);
     });
-    const cols = TYPES.filter(t => colTotal[t] > 0);
+    const cols = ALL_TYPES.filter(t => colTotal[t] > 0);
     if (!rowsIdx.length || !cols.length) { wrap.innerHTML = ''; return; }
     const headCells = cols.map(t => `<th title="${esc(t)}">${esc(t)}</th>`).join('');
     const body = rowsIdx.map(i => {
       const c = getCard(i), p = PASSAGES[i];
       const label = esc('지문 ' + (p.num != null ? p.num : i + 1));
       const cells = cols.map(t => {
-        const n = c.counters[t] || 0;
+        const n = wcount(c, t);
         const col = heatColor(n);
         return `<td><div class="hc" style="background:${col.bg};color:${col.fg}" onclick="trk.jumpTo(${i})">${n > 0 ? n : ''}</div></td>`;
       }).join('');
@@ -252,11 +267,11 @@
   }
   function personalLine(d, pct) {
     // 전체 집계
-    const weak = {}; TYPES.forEach(t => weak[t] = 0);
+    const weak = {}; ALL_TYPES.forEach(t => weak[t] = 0);
     let anyReinforce = false, doneCnt = 0;
     PASSAGES.forEach((_, i) => {
       const c = getCard(i);
-      TYPES.forEach(t => weak[t] += c.counters[t] || 0);
+      ALL_TYPES.forEach(t => weak[t] += wcount(c, t));
       if (c.reinforce) anyReinforce = true;
       if (cardPct(i) > 0) doneCnt++;
     });
@@ -284,11 +299,11 @@
   // ── ② 약점 순위 랭킹 (유형별 총 오답, 누르면 가장 많이 틀린 지문으로 점프) ──
   function renderWeak() {
     const weak = {}; const worst = {}; // 유형 → 합계 / 유형 → 가장 많이 틀린 지문 idx
-    TYPES.forEach(t => { weak[t] = 0; worst[t] = { idx: -1, n: 0 }; });
+    ALL_TYPES.forEach(t => { weak[t] = 0; worst[t] = { idx: -1, n: 0 }; });
     PASSAGES.forEach((_, i) => {
       const c = getCard(i);
-      TYPES.forEach(t => {
-        const n = c.counters[t] || 0;
+      ALL_TYPES.forEach(t => {
+        const n = wcount(c, t);
         if (n > 0) { weak[t] += n; if (n > worst[t].n) worst[t] = { idx: i, n }; }
       });
     });
