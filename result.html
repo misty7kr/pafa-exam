@@ -28,6 +28,7 @@
         <div class="progress-track">
           <div class="progress-fill" id="result-progress" style="width: 0%;"></div>
         </div>
+        <button type="button" id="copy-wrong-md" style="margin-top:16px;font-size:13px;font-weight:700;padding:8px 16px;border:1px solid var(--navy,#1a3a6b);border-radius:6px;background:transparent;color:var(--navy,#1a3a6b);cursor:pointer;">📋 틀린 문항 복사</button>
       </div>
     </section>
 
@@ -193,6 +194,41 @@
             </tr>${extraRow}`;
         })
         .join('');
+
+      // 틀린 문항 → 출처·유형 마크다운 복사
+      function buildWrongMarkdown() {
+        const cleanSource = s => s ? String(s).replace(/\s*-\s*특수$/i, '').trim() : '출처 미상';
+        const all = result.responses || [];
+        const wrong = all.filter(r => r.grade_status !== 'pending' && Number(r.score) < Number(r.max_score));
+        const pending = all.filter(r => r.grade_status === 'pending').length;
+        const title = parseExamTitle(result.exam_title) || '시험';
+        let out = `${title} — 틀린 문항 (${result.student_name || ''})\n\n`;
+        if (!wrong.length) out += '틀린 문항이 없습니다.';
+        else out += wrong.map(r => `${cleanSource(r.source)} ${(r.qtype || r.question_type || '').trim()}`.trim()).join('\n');
+        if (pending) out += `\n\n(서술형 ${pending}개 채점 중)`;
+        return out;
+      }
+
+      async function copyText(text) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+        } catch(_) {}
+        // http/구형 폴백
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+        } catch(_) { return false; }
+      }
+
+      document.getElementById('copy-wrong-md').addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const ok = await copyText(buildWrongMarkdown());
+        const prev = btn.textContent;
+        btn.textContent = ok ? '✓ 복사됨' : '복사 실패';
+        setTimeout(() => { btn.textContent = prev; }, 1500);
+      });
 
       document.getElementById('retry-button').addEventListener('click', () => {
         window.location.href = 'exam.html';
