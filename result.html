@@ -199,7 +199,8 @@
       function buildWrongMarkdown() {
         const cleanSource = s => s ? String(s).replace(/\s*-\s*특수$/i, '').trim() : '출처 미상';
         const all = result.responses || [];
-        const wrong = all.filter(r => r.grade_status !== 'pending' && Number(r.score) < Number(r.max_score));
+        const wrong = all.filter(r => r.grade_status !== 'pending' && Number(r.score) < Number(r.max_score))
+          .sort((a, b) => cleanSource(a.source).localeCompare(cleanSource(b.source), 'ko', { numeric: true })); // 출처 오름차순(숫자인식: 3강→13강)
         const pending = all.filter(r => r.grade_status === 'pending').length;
         const correct = all.filter(r => r.grade_status !== 'pending' && r.score != null && Number(r.score) >= Number(r.max_score)).length;
         const title = parseExamTitle(result.exam_title) || '시험';
