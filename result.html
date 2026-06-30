@@ -201,8 +201,10 @@
         const all = result.responses || [];
         const wrong = all.filter(r => r.grade_status !== 'pending' && Number(r.score) < Number(r.max_score));
         const pending = all.filter(r => r.grade_status === 'pending').length;
+        const correct = all.filter(r => r.grade_status !== 'pending' && r.score != null && Number(r.score) >= Number(r.max_score)).length;
         const title = parseExamTitle(result.exam_title) || '시험';
-        let out = `${title} — 틀린 문항 (${result.student_name || ''})\n\n`;
+        let out = `${title} — 틀린 문항 (${result.student_name || ''})\n`;
+        out += `총 ${all.length}문제 중 ${correct}개 맞음\n\n`;
         if (!wrong.length) out += '틀린 문항이 없습니다.';
         else out += wrong.map(r => `${cleanSource(r.source)} ${(r.qtype || r.question_type || '').trim()}`.trim()).join('\n');
         if (pending) out += `\n\n(서술형 ${pending}개 채점 중)`;
