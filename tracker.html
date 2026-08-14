@@ -133,6 +133,22 @@
   .heat-leg span{display:inline-flex; align-items:center; gap:3px;}
   .heat-leg i{width:12px; height:12px; display:inline-block; border-radius:2px;}
 
+  /* ── 이번 주 (주차 플랜, 조회 전용) ── */
+  .pw{margin:14px 14px 0; background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:14px;}
+  .pw .h{display:flex; align-items:baseline; gap:8px; margin-bottom:9px;}
+  .pw .h b{font-size:13px; font-weight:800; color:var(--accent);}
+  .pw .h span{font-size:11px; color:var(--muted);}
+  .pw .it{display:flex; align-items:baseline; gap:8px; padding:7px 0; border-top:1px dashed var(--border);}
+  .pw .it:first-of-type{border-top:none;}
+  .pw .it .nm{flex:1; font-size:12.5px; color:var(--txt);}
+  .pw .it .qt{font-size:16px; font-weight:800; color:var(--accent);}
+  .pw .it .un{font-size:10.5px; color:var(--muted);}
+  .pw .give{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--sub);}
+  .pw .give i{font-style:normal; color:var(--muted); margin-right:5px;}
+  .pw .carry{margin-top:7px; font-size:11px; color:var(--warn);}
+  .pw .note{margin-top:7px; font-size:11px; color:var(--muted);}
+  .pw .sus{font-size:11.5px; color:var(--warn); font-weight:700;}
+
   /* ── 지문 바로가기 드롭다운 ── */
   .pjump{padding:0 14px 4px;}
   .pjump select{width:100%; background:var(--surface); color:var(--txt); border:1px solid var(--border); border-radius:10px; padding:11px 36px 11px 12px; font-size:13px; font-family:inherit; font-weight:600; -webkit-appearance:none; appearance:none; cursor:pointer; outline:none;
@@ -176,6 +192,11 @@
     <div class="dd-item big"><span class="dd-lbl">D-day</span><span class="dd-num" id="ddBigNum">D-?</span></div>
   </div>
 
+  <!-- ── 이번 주 (개별애착형 주차 플랜 · 조회 전용, 2026-08-15) ──
+       플랜이 없거나 기능이 꺼져 있으면 «아무것도 그리지 않는다»(빈 상태 = 정상).
+       계산은 전부 서버(v1-plan.js)가 한다 — 여기서 숫자를 만들지 않는다. -->
+  <div id="planWeek" style="display:none;"></div>
+
   <div class="sec-lbl" id="secLbl" style="display:none;"></div>
   <div class="pjump" id="pjumpWrap" style="display:none;">
     <select id="pjump" onchange="trk.jumpSel(this.value)"></select>
@@ -193,5 +214,65 @@
 
 <script src="js/api.js?v=20260528"></script>
 <script src="js/tracker.js?v=20260528"></script>
+<script>
+// ── 이번 주 블록 (조회 전용) — tracker.js 무접촉, 실패는 «조용히 없음» ──
+//   계약(SSOT v1-plan.js): GET /v1/plan?scope_id&student_id
+//   ★플랜 미생성·기능 OFF(503)·오류 = 전부 «표시 안 함». 학생에게 반쪽 숫자를 보이지 않는다.
+(function () {
+  'use strict';
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g,
+    function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  function stu() {
+    try { return JSON.parse(localStorage.getItem('pafa_student') || sessionStorage.getItem('pafa_student') || 'null'); }
+    catch (e) { return null; }
+  }
+  function md(s) { return s ? s.slice(5).replace('-', '/') : ''; }
+
+  async function draw() {
+    var box = document.getElementById('planWeek');
+    var S = stu();
+    if (!box || !S || !S.student_id || !S.school || !S.grade) return;
+    try {
+      var sc = await window.api.v1Get('/scope', { academy_code: S.academy_code, school: S.school, grade: S.grade });
+      if (!sc.ok || !sc.scope) return;
+      var p = await window.api.v1Get('/plan', { scope_id: sc.scope.id, student_id: S.student_id });
+      if (!p.ok || !p.plan) return;                       // 플랜 없음 = 아무것도 안 그린다
+      var wk = (p.weeks || []).filter(function (w) { return !w.past; })[0];
+      if (!wk) return;                                    // 전 주차 종료(시험 지남)
+      if (p.plan.suspended) {
+        box.innerHTML = '<div class="pw"><div class="h"><b>이번 주</b></div>'
+          + '<div class="sus">시험일이 바뀌어 계획을 다시 짜는 중이에요. 잠시만 기다려 주세요.</div></div>';
+        box.style.display = ''; return;
+      }
+      var mine = [], give = [], carry = [];
+      (p.slots || []).forEach(function (s) {
+        if (!s.configured) return;                        // 미구성 슬롯은 학생에게 안 보인다
+        var w = (s.weeks || []).filter(function (x) { return x.n === wk.n; })[0];
+        if (!w || w.amount == null) return;
+        (s.column === 'academy' ? give : mine).push({ label: s.label, amount: w.amount, unit: s.measurement_unit });
+        if (s.past && s.past.carry > 0) carry.push(s.label + ' ' + s.past.carry + s.measurement_unit);
+      });
+      if (!mine.length && !give.length) return;
+      var html = '<div class="pw"><div class="h"><b>이번 주</b>'
+        + '<span>' + wk.n + '주차 · ' + esc(md(wk.start)) + ' ~ ' + esc(md(wk.end)) + '</span></div>';
+      html += mine.map(function (i) {
+        return '<div class="it"><span class="nm">' + esc(i.label) + '</span>'
+          + '<span class="qt">' + i.amount + '</span><span class="un">' + esc(i.unit) + '</span></div>';
+      }).join('');
+      if (give.length) {
+        html += '<div class="give"><i>학원 제공</i>' + give.map(function (i) {
+          return esc(i.label) + ' ' + i.amount + esc(i.unit);
+        }).join(' · ') + '</div>';
+      }
+      if (carry.length) html += '<div class="carry">지난 주차에서 넘어온 양 — ' + esc(carry.join(' · ')) + '</div>';
+      if (wk.note) html += '<div class="note">' + esc(wk.note) + '</div>';
+      box.innerHTML = html + '</div>';
+      box.style.display = '';
+    } catch (e) { /* 조회 전용 — 실패하면 그냥 표시하지 않는다 */ }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', draw);
+  else draw();
+})();
+</script>
 </body>
 </html>
