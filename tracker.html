@@ -238,8 +238,8 @@
       if (!sc.ok || !sc.scope) return;
       var p = await window.api.v1Get('/plan', { scope_id: sc.scope.id, student_id: S.student_id });
       if (!p.ok || !p.plan) return;                       // 플랜 없음 = 아무것도 안 그린다
-      var wk = (p.weeks || []).filter(function (w) { return !w.past; })[0];
-      if (!wk) return;                                    // 전 주차 종료(시험 지남)
+      var wk = (p.weeks || [])[0];       // ★§14: 계획은 «지금부터» — 1주차가 이번 주다
+      if (!wk) return;                   // 남은 양 0 또는 주당 소화량 미정 = 표시하지 않는다
       if (p.plan.suspended) {
         box.innerHTML = '<div class="pw"><div class="h"><b>이번 주</b></div>'
           + '<div class="sus">시험일이 바뀌어 계획을 다시 짜는 중이에요. 잠시만 기다려 주세요.</div></div>';
@@ -252,7 +252,7 @@
         if (!w || w.amount == null) return;
         (s.column === 'academy' ? give : mine).push({ label: s.label, amount: w.amount,
           unit: s.measurement_unit, range: w.range_label });
-        if (s.past && s.past.carry > 0) carry.push(s.label + ' ' + s.past.carry + s.measurement_unit);
+        if (w.beyond) carry.push(s.label);            // 시험일 이후로 밀린 구간
       });
       if (!mine.length && !give.length) return;
       var html = '<div class="pw"><div class="h"><b>이번 주</b>'
@@ -268,7 +268,10 @@
           return esc(i.label) + (i.range ? ' ' + esc(i.range) : '') + ' ' + i.amount + esc(i.unit);
         }).join(' · ') + '</div>';
       }
-      if (carry.length) html += '<div class="carry">지난 주차에서 넘어온 양 — ' + esc(carry.join(' · ')) + '</div>';
+      if (p.plan.period_short) {
+        html += '<div class="carry">이 속도로는 시험 전까지 ' + esc((p.plan.unreached || []).join(' · '))
+          + ' 까지 못 갑니다 — 선생님과 상의하세요.</div>';
+      }
       if (wk.note) html += '<div class="note">' + esc(wk.note) + '</div>';
       box.innerHTML = html + '</div>';
       box.style.display = '';
