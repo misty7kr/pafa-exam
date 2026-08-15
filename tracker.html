@@ -141,6 +141,7 @@
   .pw .it{display:flex; align-items:baseline; gap:8px; padding:7px 0; border-top:1px dashed var(--border);}
   .pw .it:first-of-type{border-top:none;}
   .pw .it .nm{flex:1; font-size:12.5px; color:var(--txt);}
+  .pw .it .nm .rg{display:block; font-size:12px; color:var(--accent); font-weight:700; margin-top:2px; line-height:1.35;}
   .pw .it .qt{font-size:16px; font-weight:800; color:var(--accent);}
   .pw .it .un{font-size:10.5px; color:var(--muted);}
   .pw .give{margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--sub);}
@@ -249,19 +250,22 @@
         if (!s.configured) return;                        // 미구성 슬롯은 학생에게 안 보인다
         var w = (s.weeks || []).filter(function (x) { return x.n === wk.n; })[0];
         if (!w || w.amount == null) return;
-        (s.column === 'academy' ? give : mine).push({ label: s.label, amount: w.amount, unit: s.measurement_unit });
+        (s.column === 'academy' ? give : mine).push({ label: s.label, amount: w.amount,
+          unit: s.measurement_unit, range: w.range_label });
         if (s.past && s.past.carry > 0) carry.push(s.label + ' ' + s.past.carry + s.measurement_unit);
       });
       if (!mine.length && !give.length) return;
       var html = '<div class="pw"><div class="h"><b>이번 주</b>'
         + '<span>' + wk.n + '주차 · ' + esc(md(wk.start)) + ' ~ ' + esc(md(wk.end)) + '</span></div>';
+      // ★«20지문»이 아니라 «무엇을» 할지가 主. 수량은 뒤에 보조로.
       html += mine.map(function (i) {
-        return '<div class="it"><span class="nm">' + esc(i.label) + '</span>'
+        return '<div class="it"><span class="nm">' + esc(i.label)
+          + (i.range ? '<b class="rg">' + esc(i.range) + '</b>' : '') + '</span>'
           + '<span class="qt">' + i.amount + '</span><span class="un">' + esc(i.unit) + '</span></div>';
       }).join('');
       if (give.length) {
         html += '<div class="give"><i>학원 제공</i>' + give.map(function (i) {
-          return esc(i.label) + ' ' + i.amount + esc(i.unit);
+          return esc(i.label) + (i.range ? ' ' + esc(i.range) : '') + ' ' + i.amount + esc(i.unit);
         }).join(' · ') + '</div>';
       }
       if (carry.length) html += '<div class="carry">지난 주차에서 넘어온 양 — ' + esc(carry.join(' · ')) + '</div>';
